@@ -46,31 +46,22 @@ function exportCSV(s,calcFp1,calcFp2,cur,mkey){const rows=[["מקור","תיאו
 // Updates happen ONLY on blur or after typing stops.
 
 function UNum({id,val,onChange,color,w}){
-  const r=useRef(null),foc=useRef(false);
-  useEffect(()=>{if(r.current&&!foc.current)r.current.value=val??""},[val]);
-  return h("input",{ref:r,type:"number",defaultValue:val??"",
-    onFocus:()=>{foc.current=true;if(r.current)r.current.style.borderColor=C.blue},
-    onBlur:e=>{foc.current=false;e.target.style.borderColor=C.bdr;const v=parseFloat(e.target.value)||0;if(v!==val)onChange(v)},
+  return h("input",{type:"number",defaultValue:val??"",
+    onBlur:e=>{const v=parseFloat(e.target.value)||0;onChange(v)},
     style:{background:C.bg,border:"1px solid "+C.bdr,color:color||"#60a5fa",borderRadius:"5px",padding:"5px 6px",fontSize:"12px",fontFamily:"'JetBrains Mono',monospace",textAlign:"center",outline:"none",width:w||"80px"}});
 }
 
 function UTxt({id,val,onChange,placeholder}){
-  const r=useRef(null),foc=useRef(false);
-  useEffect(()=>{if(r.current&&!foc.current)r.current.value=val??""},[val]);
-  return h("input",{ref:r,defaultValue:val??"",placeholder:placeholder||"",
-    onFocus:()=>{foc.current=true},
-    onBlur:e=>{foc.current=false;const v=e.target.value;if(v!==(val??""))onChange(v)},
+  return h("input",{defaultValue:val??"",placeholder:placeholder||"",
+    onBlur:e=>{onChange(e.target.value)},
     style:{background:"transparent",border:"none",color:C.tx,fontSize:"12px",fontFamily:"inherit",outline:"none",borderBottom:"1px solid "+C.bdr,paddingBottom:"2px",width:"100%"}});
 }
 
 function UGross({val,onChange,cur}){
-  const r=useRef(null),foc=useRef(false);
-  useEffect(()=>{if(r.current&&!foc.current)r.current.value=val??""},[val]);
   return h("div",{style:{display:"flex",alignItems:"center",gap:"5px"}},
     h("span",{style:{fontSize:"15px",color:C.blue,fontWeight:700}},cur),
-    h("input",{ref:r,type:"number",defaultValue:val??"",
-      onFocus:()=>{foc.current=true},
-      onBlur:e=>{foc.current=false;const v=parseFloat(e.target.value)||0;if(v!==val)onChange(v)},
+    h("input",{type:"number",defaultValue:val??"",
+      onBlur:e=>{onChange(parseFloat(e.target.value)||0)},
       style:{background:"transparent",border:"none",color:C.tx,fontSize:"22px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",outline:"none",width:"100%"}}));
 }
 
@@ -104,7 +95,7 @@ function App(){
   useEffect(()=>{
     if(!loaded.current||!data)return;
     if(saveT.current)clearTimeout(saveT.current);
-    saveT.current=setTimeout(()=>{setSaveSt("שומר...");dbSave(dataRef.current).then(()=>{setSaveSt("נשמר ✓");setTimeout(()=>setSaveSt(""),2000)})},2000);
+    saveT.current=setTimeout(()=>{dbSave(dataRef.current)},2000);
     return()=>{if(saveT.current)clearTimeout(saveT.current)};
   },[data]);
 
@@ -178,7 +169,7 @@ function App(){
     h("div",{style:{background:"linear-gradient(180deg,"+C.card2+","+C.bg+")",borderBottom:"1px solid "+C.bdr,padding:"14px 14px 0",position:"sticky",top:0,zIndex:100}},
       h("div",{style:{maxWidth:960,margin:"0 auto"}},
         h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}},
-          h("div",{style:{display:"flex",alignItems:"center",gap:"8px"}},h("h1",{style:{margin:0,fontSize:"17px",fontWeight:700}},h("span",{style:{color:C.blue}},"BUZZ")," תכנון פיננסי"),saveSt&&h("span",{style:{fontSize:"9px",color:saveSt.includes("✓")?C.green:C.txm}},saveSt)),
+          h("div",{style:{display:"flex",alignItems:"center",gap:"8px"}},h("h1",{style:{margin:0,fontSize:"17px",fontWeight:700}},h("span",{style:{color:C.blue}},"BUZZ")," תכנון פיננסי"),false),
           h("div",{style:{display:"flex",gap:"5px",alignItems:"center"}},
             h("div",{style:{display:"flex",borderRadius:"5px",overflow:"hidden",border:"1px solid "+C.bdr}},["₪","$"].map(c=>h("button",{key:c,onClick:toggleCur,style:{background:cur===c?C.blue:"transparent",border:"none",color:cur===c?"#fff":C.txd,padding:"2px 9px",cursor:"pointer",fontSize:"11px",fontWeight:600,fontFamily:"inherit"}},c))),
             h("button",{onClick:()=>exportCSV(s,calcFp1,calcFp2,cur,mkey),style:{background:C.greenD,border:"1px solid "+C.green+"33",color:C.green,padding:"2px 8px",borderRadius:"5px",cursor:"pointer",fontSize:"10px",fontFamily:"inherit",fontWeight:600}},"📥"),
