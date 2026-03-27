@@ -46,24 +46,31 @@ function exportCSV(s,calcFp1,calcFp2,cur,mkey){const rows=[["מקור","תיאו
 // Updates happen ONLY on blur or after typing stops.
 
 function UNum({id,val,onChange,color,w}){
-  return h("input",{key:id+"_"+val,type:"number",defaultValue:val||"",
-    onBlur:e=>{const v=parseFloat(e.target.value)||0;if(v!==val)onChange(v)},
-    style:{background:C.bg,border:"1px solid "+C.bdr,color:color||"#60a5fa",borderRadius:"5px",padding:"5px 6px",fontSize:"12px",fontFamily:"'JetBrains Mono',monospace",textAlign:"center",outline:"none",width:w||"80px"},
-    onFocus:e=>e.currentTarget.style.borderColor=C.blue});
+  const r=useRef(null),foc=useRef(false);
+  useEffect(()=>{if(r.current&&!foc.current)r.current.value=val??""},[val]);
+  return h("input",{ref:r,type:"number",defaultValue:val??"",
+    onFocus:()=>{foc.current=true;if(r.current)r.current.style.borderColor=C.blue},
+    onBlur:e=>{foc.current=false;e.target.style.borderColor=C.bdr;const v=parseFloat(e.target.value)||0;if(v!==val)onChange(v)},
+    style:{background:C.bg,border:"1px solid "+C.bdr,color:color||"#60a5fa",borderRadius:"5px",padding:"5px 6px",fontSize:"12px",fontFamily:"'JetBrains Mono',monospace",textAlign:"center",outline:"none",width:w||"80px"}});
 }
 
 function UTxt({id,val,onChange,placeholder}){
-  return h("input",{key:id+"_"+String(val||""),defaultValue:val||"",
-    onBlur:e=>{const v=e.target.value;if(v!==val)onChange(v)},
-    placeholder:placeholder||"",
+  const r=useRef(null),foc=useRef(false);
+  useEffect(()=>{if(r.current&&!foc.current)r.current.value=val??""},[val]);
+  return h("input",{ref:r,defaultValue:val??"",placeholder:placeholder||"",
+    onFocus:()=>{foc.current=true},
+    onBlur:e=>{foc.current=false;const v=e.target.value;if(v!==(val??""))onChange(v)},
     style:{background:"transparent",border:"none",color:C.tx,fontSize:"12px",fontFamily:"inherit",outline:"none",borderBottom:"1px solid "+C.bdr,paddingBottom:"2px",width:"100%"}});
 }
 
 function UGross({val,onChange,cur}){
+  const r=useRef(null),foc=useRef(false);
+  useEffect(()=>{if(r.current&&!foc.current)r.current.value=val??""},[val]);
   return h("div",{style:{display:"flex",alignItems:"center",gap:"5px"}},
     h("span",{style:{fontSize:"15px",color:C.blue,fontWeight:700}},cur),
-    h("input",{key:"gross_"+val,type:"number",defaultValue:val||"",
-      onBlur:e=>{const v=parseFloat(e.target.value)||0;if(v!==val)onChange(v)},
+    h("input",{ref:r,type:"number",defaultValue:val??"",
+      onFocus:()=>{foc.current=true},
+      onBlur:e=>{foc.current=false;const v=parseFloat(e.target.value)||0;if(v!==val)onChange(v)},
       style:{background:"transparent",border:"none",color:C.tx,fontSize:"22px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",outline:"none",width:"100%"}}));
 }
 
