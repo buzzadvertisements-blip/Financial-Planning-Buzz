@@ -36,7 +36,7 @@ function fmt(n,c){const s=c==="$"?"$":"₪";const a=Math.abs(Math.round(n));retu
 const MHE=["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
 function mkk(y,m){return y+"-"+String(m+1).padStart(2,"0")}
 const DIVS=[{id:"div1",name:"דיביזיה 1 — ייסוד ותקשורות"},{id:"div2",name:"דיביזיה 2 — הפצה"},{id:"div3",name:"דיביזיה 3 — אוצר"},{id:"div4",name:"דיביזיה 4 — ייצור"},{id:"div5",name:"דיביזיה 5 — הסמכות"},{id:"div6",name:"דיביזיה 6 — תפוצה (קידום)"},{id:"div7",name:"דיביזיה 7 — מנהלים"}];
-function freshMonth(){return{grossIncome:0,fp1:[{id:gid(),desc:'מע"מ',val:17,isPct:true},{id:gid(),desc:"ביטוח לאומי",val:10,isPct:true},{id:gid(),desc:"מס הכנסה",val:10,isPct:true}],fp2:[],divisions:DIVS.map(d=>({...d})),divItems:[],approval:{},payment:{}}}
+function freshMonth(){return{grossIncome:0,vatAmount:0,fp1:[{id:gid(),desc:"ביטוח לאומי",val:10,isPct:true},{id:gid(),desc:"מס הכנסה",val:10,isPct:true}],fp2:[],divisions:DIVS.map(d=>({...d})),divItems:[],approval:{},payment:{}}}
 const C={bg:"#090c10",card:"#11151d",card2:"#171c27",bdr:"#1e2535",bdr2:"#283042",tx:"#e2e6ed",txd:"#7b8a9e",txm:"#4a5568",blue:"#3b82f6",blueD:"#132850",green:"#10b981",greenD:"#0a2b20",red:"#ef4444",redD:"#2d0e0e",amber:"#f59e0b",amberD:"#2a1d06",purple:"#a78bfa",purpleD:"#1c1340",cyan:"#06b6d4",cyanD:"#0a2530"};
 
 function exportCSV(s,calcFp1,calcFp2,cur,mkey){const rows=[["מקור","תיאור","מבוקש","מאושר","שולם","סטטוס"]];rows.push(["חודש",mkey,"","","",""]);rows.push(["הכנסה ברוטו","",s.grossIncome,"","",""]);rows.push([]);function addI(sec,items,fn){items.forEach(i=>{const amt=fn(i);const ap=s.approval[i.id];const py=s.payment[i.id];rows.push([sec,i.desc||"",Math.round(amt),ap?.approved?ap.approvedAmount:0,py?.paidAmount||0,!ap?.approved?"לא מאושר":py?.status==="paid"?"שולם במלואו":py?.status==="partial"?"שולם חלקית":"ממתין"])})}rows.push(["=== FP#1 ==="]);addI("FP#1",s.fp1,calcFp1);rows.push([]);rows.push(["=== הקצאות כלליות ==="]);addI("כללי",s.fp2,calcFp2);(s.divisions||[]).forEach(div=>{const items=(s.divItems||[]).filter(x=>x.divId===div.id);if(items.length){rows.push([]);rows.push(["=== "+div.name+" ==="]);addI(div.name,items,i=>i.amount||0)}});const bom="\uFEFF";const csv=rows.map(r=>r.map(c=>'"'+String(c??"").replace(/"/g,'""')+'"').join(",")).join("\n");const blob=new Blob([bom+csv],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="FP_BUZZ_"+mkey+".csv";a.click();URL.revokeObjectURL(url)}
@@ -111,8 +111,8 @@ function App(){
   if(!data)return h("div",{style:{background:C.bg,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:C.txd,fontSize:"16px"}},"טוען...");
 
   const s=gM();const cur=data.currency||"₪";
-  const calcFp1=i=>i.isPct?(s.grossIncome*i.val/100):i.val;
-  const fp1Plan=s.fp1.reduce((a,i)=>a+calcFp1(i),0);
+  const vatAmt=s.vatAmount||0;const grossNoVat=s.grossIncome-vatAmt;const calcFp1=i=>i.isPct?(grossNoVat*i.val/100):i.val;
+  const fp1Plan=vatAmt+s.fp1.reduce((a,i)=>a+calcFp1(i),0);
   const corrGross=s.grossIncome-fp1Plan;
   const calcFp2=i=>i.isPct?(corrGross*i.val/100):i.val;
   const fp2Plan=s.fp2.reduce((a,i)=>a+calcFp2(i),0);
@@ -196,13 +196,22 @@ function App(){
     h("div",{style:{maxWidth:960,margin:"0 auto",padding:"14px"}},
       tab==="fp1"&&h("div",{style:{background:C.card,borderRadius:"11px",border:"1px solid "+C.bdr,padding:"16px"}},
         h("h2",{style:{margin:"0 0 3px",fontSize:"14px"}},"📋 תכנון פיננסי #1 — חובות"),
-        h("p",{style:{margin:"0 0 12px",fontSize:"10px",color:C.txd}},"תכנון בלבד."),
+        h("p",{style:{margin:"0 0 12px",fontSize:"10px",color:C.txd}},"מיסים, ביטוח, ספקים, משכורות. אחוזים מחושבים מהברוטו ללא מע״מ."),
         h("div",{style:{background:"linear-gradient(135deg,"+C.blueD+","+C.purpleD+")",borderRadius:"9px",padding:"11px 13px",marginBottom:"12px",border:"1px solid "+C.blue+"20"}},
           h("div",{style:{fontSize:"10px",color:C.txd,marginBottom:"3px"}},"הכנסה ברוטו — "+MHE[selMonth]+" "+selYear),
           h(UGross,{val:s.grossIncome,onChange:setGross,cur})),
+        h("div",{style:{display:"flex",gap:"8px",marginBottom:"12px"}},
+          h("div",{style:{flex:1,background:C.amberD,borderRadius:"9px",padding:"10px 13px",border:"1px solid "+C.amber+"20"}},
+            h("div",{style:{fontSize:"10px",color:C.txd,marginBottom:"3px"}},'סכום מע"מ (הזן ידנית)'),
+            h("div",{style:{display:"flex",alignItems:"center",gap:"5px"}},
+              h("span",{style:{fontSize:"14px",color:C.amber,fontWeight:700}},cur),
+              h(UNum,{id:"vat",val:s.vatAmount||0,onChange:v=>sM(m=>({...m,vatAmount:v})),color:C.amber,w:"100px"}))),
+          h("div",{style:{flex:1,background:C.purpleD,borderRadius:"9px",padding:"10px 13px",border:"1px solid "+C.purple+"20"}},
+            h("div",{style:{fontSize:"10px",color:C.txd,marginBottom:"3px"}},"ברוטו ללא מע״מ"),
+            h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"18px",fontWeight:700,color:C.purple}},fmt(Math.round(grossNoVat),cur)))),
         h("div",{style:{display:"grid",gridTemplateColumns:"1fr 60px 80px 80px 26px",gap:"5px",padding:"0 8px 4px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"סוג"),h("div",{style:{textAlign:"center"}},"ערך"),h("div",{style:{textAlign:"center"}},"סכום"),h("div",null,"")),
         h("div",{style:{display:"flex",flexDirection:"column",gap:"3px"}},s.fp1.map(i=>h(FpRow,{key:i.id,item:i,calcAmt:calcFp1,updFn:updFp1,rmFn:rmFp1}))),
-        h(AddBtn,{onClick:addFp1}),h(SecTot,{label:'סה"כ FP#1',value:fp1Plan,cur,color:C.red}),h(SecTot,{label:"ברוטו מתוקנת",value:corrGross,cur,color:C.purple})
+        h(AddBtn,{onClick:addFp1}),h("div",{style:{padding:"8px 12px",borderRadius:"8px",background:C.bg,border:"1px solid "+C.bdr,marginTop:"10px",display:"flex",justifyContent:"space-between",alignItems:"center"}},h("span",{style:{fontSize:"11px",color:C.txd}},'מע"מ'),h("span",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"13px",fontWeight:600,color:C.amber}},fmt(Math.round(vatAmt),cur))),h(SecTot,{label:'סה"כ FP#1 (כולל מע"מ)',value:fp1Plan,cur,color:C.red}),h(SecTot,{label:"ברוטו מתוקנת (אחרי FP#1)",value:corrGross,cur,color:C.purple})
       ),
 
       tab==="fp2"&&h("div",null,
