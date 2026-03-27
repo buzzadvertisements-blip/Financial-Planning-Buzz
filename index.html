@@ -8,10 +8,10 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#090c10;font-family:'Segoe UI','Noto Sans Hebrew',system-ui,sans-serif;color:#e2e6ed;direction:rtl}
+body{background:#f0f2f5;font-family:'Segoe UI','Noto Sans Hebrew',system-ui,sans-serif;color:#e2e6ed;direction:rtl}
 input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 input[type=number]{-moz-appearance:textfield}
-::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#11151d}::-webkit-scrollbar-thumb{background:#283042;border-radius:3px}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#f0f2f5}::-webkit-scrollbar-thumb{background:#c0c5d0;border-radius:3px}
 </style>
 </head>
 <body>
@@ -37,7 +37,7 @@ const MHE=["ינואר","פברואר","מרץ","אפריל","מאי","יוני"
 function mkk(y,m){return y+"-"+String(m+1).padStart(2,"0")}
 const DIVS=[{id:"div1",name:"דיביזיה 1 — ייסוד ותקשורות"},{id:"div2",name:"דיביזיה 2 — הפצה"},{id:"div3",name:"דיביזיה 3 — אוצר"},{id:"div4",name:"דיביזיה 4 — ייצור"},{id:"div5",name:"דיביזיה 5 — הסמכות"},{id:"div6",name:"דיביזיה 6 — תפוצה (קידום)"},{id:"div7",name:"דיביזיה 7 — מנהלים"}];
 function freshMonth(){return{grossIncome:0,vatAmount:0,fp1:[{id:gid(),desc:"ביטוח לאומי",val:10,isPct:true},{id:gid(),desc:"מס הכנסה",val:10,isPct:true}],fp2:[],divisions:DIVS.map(d=>({...d})),divItems:[],approval:{},payment:{}}}
-const C={bg:"#090c10",card:"#11151d",card2:"#171c27",bdr:"#1e2535",bdr2:"#283042",tx:"#e2e6ed",txd:"#7b8a9e",txm:"#4a5568",blue:"#3b82f6",blueD:"#132850",green:"#10b981",greenD:"#0a2b20",red:"#ef4444",redD:"#2d0e0e",amber:"#f59e0b",amberD:"#2a1d06",purple:"#a78bfa",purpleD:"#1c1340",cyan:"#06b6d4",cyanD:"#0a2530"};
+const C={bg:"#f0f2f5",card:"#ffffff",card2:"#f8f9fb",bdr:"#e0e4ea",bdr2:"#d0d5dd",tx:"#1a1d23",txd:"#5f6b7a",txm:"#9ca3b0",blue:"#2563eb",blueD:"#dbeafe",green:"#059669",greenD:"#d1fae5",red:"#dc2626",redD:"#fee2e2",amber:"#d97706",amberD:"#fef3c7",purple:"#7c3aed",purpleD:"#ede9fe",cyan:"#0891b2",cyanD:"#cffafe"};
 
 function exportCSV(s,calcFp1,calcFp2,cur,mkey){const rows=[["מקור","תיאור","מבוקש","מאושר","שולם","סטטוס"]];rows.push(["חודש",mkey,"","","",""]);rows.push(["הכנסה ברוטו","",s.grossIncome,"","",""]);rows.push([]);function addI(sec,items,fn){items.forEach(i=>{const amt=fn(i);const ap=s.approval[i.id];const py=s.payment[i.id];rows.push([sec,i.desc||"",Math.round(amt),ap?.approved?ap.approvedAmount:0,py?.paidAmount||0,!ap?.approved?"לא מאושר":py?.status==="paid"?"שולם במלואו":py?.status==="partial"?"שולם חלקית":"ממתין"])})}rows.push(["=== FP#1 ==="]);addI("FP#1",s.fp1,calcFp1);rows.push([]);rows.push(["=== הקצאות כלליות ==="]);addI("כללי",s.fp2,calcFp2);(s.divisions||[]).forEach(div=>{const items=(s.divItems||[]).filter(x=>x.divId===div.id);if(items.length){rows.push([]);rows.push(["=== "+div.name+" ==="]);addI(div.name,items,i=>i.amount||0)}});const bom="\uFEFF";const csv=rows.map(r=>r.map(c=>'"'+String(c??"").replace(/"/g,'""')+'"').join(",")).join("\n");const blob=new Blob([bom+csv],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="FP_BUZZ_"+mkey+".csv";a.click();URL.revokeObjectURL(url)}
 
@@ -46,33 +46,28 @@ function exportCSV(s,calcFp1,calcFp2,cur,mkey){const rows=[["מקור","תיאו
 // Updates happen ONLY on blur or after typing stops.
 
 function UNum({id,val,onChange,color,w}){
-  const t=useRef(null);
-  const go=e=>{const v=parseFloat(e.target.value)||0;onChange(v)};
-  const onInp=e=>{const el=e.target;if(t.current)clearTimeout(t.current);t.current=setTimeout(()=>go({target:el}),700)};
-  return h("input",{type:"number",defaultValue:val??"",onInput:onInp,onBlur:e=>{if(t.current)clearTimeout(t.current);go(e)},
-    style:{background:C.bg,border:"1px solid "+C.bdr,color:color||"#60a5fa",borderRadius:"5px",padding:"5px 6px",fontSize:"12px",fontFamily:"'JetBrains Mono',monospace",textAlign:"center",outline:"none",width:w||"80px"}});
+  return h("input",{type:"number",defaultValue:val??"",
+    onBlur:e=>{const v=parseFloat(e.target.value)||0;onChange(v)},
+    style:{background:C.bg,border:"1px solid "+C.bdr,color:color||"#2563eb",borderRadius:"5px",padding:"5px 6px",fontSize:"12px",fontFamily:"'JetBrains Mono',monospace",textAlign:"center",outline:"none",width:w||"80px"}});
 }
 
 function UTxt({id,val,onChange,placeholder}){
-  const t=useRef(null);
-  const go=e=>onChange(e.target.value);
-  const onInp=e=>{const el=e.target;if(t.current)clearTimeout(t.current);t.current=setTimeout(()=>go({target:el}),700)};
-  return h("input",{defaultValue:val??"",placeholder:placeholder||"",onInput:onInp,onBlur:e=>{if(t.current)clearTimeout(t.current);go(e)},
+  return h("input",{defaultValue:val??"",placeholder:placeholder||"",
+    onBlur:e=>{onChange(e.target.value)},
     style:{background:"transparent",border:"none",color:C.tx,fontSize:"12px",fontFamily:"inherit",outline:"none",borderBottom:"1px solid "+C.bdr,paddingBottom:"2px",width:"100%"}});
 }
 
 function UGross({val,onChange,cur}){
-  const t=useRef(null);
-  const go=e=>{onChange(parseFloat(e.target.value)||0)};
-  const onInp=e=>{const el=e.target;if(t.current)clearTimeout(t.current);t.current=setTimeout(()=>go({target:el}),700)};
   return h("div",{style:{display:"flex",alignItems:"center",gap:"5px"}},
     h("span",{style:{fontSize:"15px",color:C.blue,fontWeight:700}},cur),
-    h("input",{type:"number",defaultValue:val??"",onInput:onInp,onBlur:e=>{if(t.current)clearTimeout(t.current);go(e)},
+    h("input",{type:"number",defaultValue:val??"",
+      onBlur:e=>{onChange(parseFloat(e.target.value)||0)},
       style:{background:"transparent",border:"none",color:C.tx,fontSize:"22px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",outline:"none",width:"100%"}}));
 }
 
 function Badge(p){return h("span",{style:{background:p.bg,color:p.color,padding:"2px 9px",borderRadius:"12px",fontSize:"11px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",whiteSpace:"nowrap"}},p.children)}
 function AddBtn(p){return h("button",{onClick:p.onClick,style:{marginTop:"7px",width:"100%",background:"transparent",border:"1px dashed "+C.bdr2,color:C.blue,padding:"8px",borderRadius:"7px",cursor:"pointer",fontSize:"11px",fontFamily:"inherit",fontWeight:600},onMouseOver:e=>e.currentTarget.style.borderColor=C.blue,onMouseOut:e=>e.currentTarget.style.borderColor=C.bdr2},p.label||"+ הוסף שורה")}
+function MoveBtn(p){return h("div",{style:{display:"flex",flexDirection:"column",gap:"1px"}},h("button",{onClick:()=>p.onMove(-1),style:{background:"transparent",border:"none",color:C.txm,cursor:"pointer",fontSize:"9px",padding:"0 3px",lineHeight:1}},"▲"),h("button",{onClick:()=>p.onMove(1),style:{background:"transparent",border:"none",color:C.txm,cursor:"pointer",fontSize:"9px",padding:"0 3px",lineHeight:1}},"▼"))}
 function RemBtn(p){return h("button",{onClick:p.onClick,style:{background:"transparent",border:"none",color:C.txm,cursor:"pointer",fontSize:"13px",padding:"3px 5px",borderRadius:"4px",lineHeight:1},onMouseOver:e=>e.currentTarget.style.color=C.red,onMouseOut:e=>e.currentTarget.style.color=C.txm},"✕")}
 function SecTot(p){const bgc=p.color===C.green?C.greenD:p.color===C.red?C.redD:p.color===C.purple?C.purpleD:p.color===C.amber?C.amberD:C.blueD;return h("div",{style:{padding:"10px 14px",borderRadius:"9px",background:bgc,border:"1px solid "+p.color+"20",display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"10px"}},h("span",{style:{fontWeight:600,fontSize:"12px"}},p.label),h("span",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"15px",fontWeight:700,color:p.color}},fmt(p.value,p.cur)))}
 function Chev(p){return h("span",{style:{transform:p.open?"rotate(90deg)":"rotate(0)",transition:"transform 0.15s",display:"inline-block",fontSize:"10px",color:C.txm}},"▶")}
@@ -118,7 +113,7 @@ function App(){
   const fp2Plan=s.fp2.reduce((a,i)=>a+calcFp2(i),0);
   const divPlan=(s.divItems||[]).reduce((a,i)=>a+(i.amount||0),0);
   const totalPlan=fp1Plan+fp2Plan+divPlan;
-  const allItems=[...s.fp1.map(i=>({...i,_amt:calcFp1(i),_src:"fp1"})),...s.fp2.map(i=>({...i,_amt:calcFp2(i),_src:"fp2"})),...(s.divItems||[]).map(i=>({...i,_amt:i.amount||0,_src:"div"}))];
+  const vatItem={id:"_vat_",desc:'מע"מ',_amt:vatAmt,_src:"vat"};const allItems=[vatItem,...s.fp1.map(i=>({...i,_amt:calcFp1(i),_src:"fp1"})),...s.fp2.map(i=>({...i,_amt:calcFp2(i),_src:"fp2"})),...(s.divItems||[]).map(i=>({...i,_amt:i.amount||0,_src:"div"}))];
   const totalApproved=allItems.reduce((a,i)=>a+(s.approval[i.id]?.approved?s.approval[i.id].approvedAmount:0),0);
   const totalPaid=allItems.reduce((a,i)=>a+(s.payment[i.id]?.paidAmount||0),0);
   const remaining=s.grossIncome-totalApproved;
@@ -128,13 +123,16 @@ function App(){
   const setGross=v=>sM(m=>({...m,grossIncome:v}));
   const addFp1=()=>sM(m=>({...m,fp1:[...m.fp1,{id:gid(),desc:"",val:0,isPct:false}]}));
   const updFp1=(id,f,v)=>sM(m=>({...m,fp1:m.fp1.map(i=>i.id===id?{...i,[f]:v}:i)}));
+  const moveFp1=(id,dir)=>sM(m=>{const idx=m.fp1.findIndex(i=>i.id===id);if(idx<0)return m;const ni=idx+dir;if(ni<0||ni>=m.fp1.length)return m;const a=[...m.fp1];[a[idx],a[ni]]=[a[ni],a[idx]];return{...m,fp1:a}});
   const rmFp1=id=>sM(m=>{const a={...m.approval};delete a[id];const p={...m.payment};delete p[id];return{...m,fp1:m.fp1.filter(i=>i.id!==id),approval:a,payment:p}});
   const addFp2=()=>sM(m=>({...m,fp2:[...m.fp2,{id:gid(),desc:"",val:0,isPct:false}]}));
   const updFp2=(id,f,v)=>sM(m=>({...m,fp2:m.fp2.map(i=>i.id===id?{...i,[f]:v}:i)}));
+  const moveFp2=(id,dir)=>sM(m=>{const idx=m.fp2.findIndex(i=>i.id===id);if(idx<0)return m;const ni=idx+dir;if(ni<0||ni>=m.fp2.length)return m;const a=[...m.fp2];[a[idx],a[ni]]=[a[ni],a[idx]];return{...m,fp2:a}});
   const rmFp2=id=>sM(m=>{const a={...m.approval};delete a[id];const p={...m.payment};delete p[id];return{...m,fp2:m.fp2.filter(i=>i.id!==id),approval:a,payment:p}});
   const updDivName=(id,n)=>sM(m=>({...m,divisions:(m.divisions||DIVS).map(d=>d.id===id?{...d,name:n}:d)}));
   const addDivItem=dId=>sM(m=>({...m,divItems:[...(m.divItems||[]),{id:gid(),divId:dId,desc:"",amount:0}]}));
   const updDivItem=(id,f,v)=>sM(m=>({...m,divItems:(m.divItems||[]).map(i=>i.id===id?{...i,[f]:v}:i)}));
+  const moveDivItem=(id,dir)=>sM(m=>{const items=(m.divItems||[]);const idx=items.findIndex(i=>i.id===id);if(idx<0)return m;const divId=items[idx].divId;const divItems=items.filter(i=>i.divId===divId);const dIdx=divItems.findIndex(i=>i.id===id);const ni=dIdx+dir;if(ni<0||ni>=divItems.length)return m;const other=divItems[ni];const allIdx1=items.findIndex(i=>i.id===id);const allIdx2=items.findIndex(i=>i.id===other.id);const a=[...items];[a[allIdx1],a[allIdx2]]=[a[allIdx2],a[allIdx1]];return{...m,divItems:a}});
   const rmDivItem=id=>sM(m=>{const a={...m.approval};delete a[id];const p={...m.payment};delete p[id];return{...m,divItems:(m.divItems||[]).filter(i=>i.id!==id),approval:a,payment:p}});
   const setApproval=(id,ok,amt)=>sM(m=>({...m,approval:{...m.approval,[id]:{approved:ok,approvedAmount:ok?amt:0}}}));
   const setPayment=(id,pA)=>{const aA=s.approval[id]?.approvedAmount||0;sM(m=>({...m,payment:{...m.payment,[id]:{status:pA>=aA&&aA>0?"paid":pA>0?"partial":"unpaid",paidAmount:pA}}}))};
@@ -160,19 +158,20 @@ function App(){
       h("div",{style:{textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",color:C.txd}},fmt(aAmt-pA,cur)),
       h("div",{style:{display:"flex",justifyContent:"center"}},h("span",{style:{fontSize:"10px",fontWeight:600,color:stC,background:stC+"15",padding:"2px 8px",borderRadius:"8px",whiteSpace:"nowrap"}},stL)))}
 
-  function FpRow(p){const{item,calcAmt,updFn,rmFn}=p;const amt=calcAmt(item);
-    return h("div",{style:{display:"grid",gridTemplateColumns:"1fr 60px 80px 80px 26px",gap:"5px",alignItems:"center",padding:"6px 8px",background:C.bg,borderRadius:"6px",border:"1px solid "+C.bdr}},
+  function FpRow(p){const{item,calcAmt,updFn,rmFn,moveFn}=p;const amt=calcAmt(item);
+    return h("div",{style:{display:"grid",gridTemplateColumns:"20px 1fr 60px 80px 80px 26px",gap:"5px",alignItems:"center",padding:"6px 8px",background:C.bg,borderRadius:"6px",border:"1px solid "+C.bdr}},
+      h(MoveBtn,{onMove:d=>moveFn(item.id,d)}),
       h(UTxt,{id:"d_"+item.id,val:item.desc,onChange:v=>updFn(item.id,"desc",v),placeholder:"תיאור..."}),
       h("div",{style:{display:"flex",justifyContent:"center"}},h("button",{onClick:()=>updFn(item.id,"isPct",!item.isPct),style:{background:item.isPct?C.blueD:C.greenD,border:"1px solid "+(item.isPct?C.blue:C.green)+"44",color:item.isPct?C.blue:C.green,borderRadius:"4px",padding:"1px 6px",cursor:"pointer",fontSize:"10px",fontWeight:700,fontFamily:"inherit"}},item.isPct?"%":cur)),
       h(UNum,{id:"v_"+item.id,val:item.val,onChange:v=>updFn(item.id,"val",v),w:"70px"}),
       h("div",{style:{textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",color:C.txd}},fmt(Math.round(amt),cur)),
       h(RemBtn,{onClick:()=>rmFn(item.id)}))}
 
-  const tabs=[{key:"fp1",label:"FP#1 חובות",icon:"📋"},{key:"fp2",label:"FP#2 תכנון",icon:"📊"},{key:"approve",label:"אישור",icon:"🔍"},{key:"approved",label:"מאושרות",icon:"✅"}];
+  const tabs=[{key:"fp1",label:"FP#1",icon:"📋"},{key:"fp2",label:"FP",icon:"📊"},{key:"approve",label:"אישור",icon:"🔍"},{key:"approved",label:"מאושרות",icon:"✅"}];
   const cH4=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 80px 95px 75px",gap:"5px",padding:"0 0 4px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"מבוקש"),h("div",{style:{textAlign:"center"}},"מאושר"),h("div",{style:{textAlign:"center"}},"אישור"));
 
   return h("div",null,
-    h("div",{style:{background:"linear-gradient(180deg,"+C.card2+","+C.bg+")",borderBottom:"1px solid "+C.bdr,padding:"14px 14px 0",position:"sticky",top:0,zIndex:100}},
+    h("div",{style:{background:"linear-gradient(180deg,"+C.card+","+C.bg+")",borderBottom:"1px solid "+C.bdr,padding:"14px 14px 0",position:"sticky",top:0,zIndex:100}},
       h("div",{style:{maxWidth:960,margin:"0 auto"}},
         h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}},
           h("div",{style:{display:"flex",alignItems:"center",gap:"8px"}},h("h1",{style:{margin:0,fontSize:"17px",fontWeight:700}},h("span",{style:{color:C.blue}},"BUZZ")," תכנון פיננסי"),false),
@@ -195,7 +194,7 @@ function App(){
 
     h("div",{style:{maxWidth:960,margin:"0 auto",padding:"14px"}},
       tab==="fp1"&&h("div",{style:{background:C.card,borderRadius:"11px",border:"1px solid "+C.bdr,padding:"16px"}},
-        h("h2",{style:{margin:"0 0 3px",fontSize:"14px"}},"📋 תכנון פיננסי #1 — חובות"),
+        h("h2",{style:{margin:"0 0 3px",fontSize:"14px"}},"📋 תכנון פיננסי #1 - הוצאות הכרחיות"),
         h("p",{style:{margin:"0 0 12px",fontSize:"10px",color:C.txd}},"מיסים, ביטוח, ספקים, משכורות. אחוזים מחושבים מהברוטו ללא מע״מ."),
         h("div",{style:{background:"linear-gradient(135deg,"+C.blueD+","+C.purpleD+")",borderRadius:"9px",padding:"11px 13px",marginBottom:"12px",border:"1px solid "+C.blue+"20"}},
           h("div",{style:{fontSize:"10px",color:C.txd,marginBottom:"3px"}},"הכנסה ברוטו — "+MHE[selMonth]+" "+selYear),
@@ -209,8 +208,8 @@ function App(){
           h("div",{style:{flex:1,background:C.purpleD,borderRadius:"9px",padding:"10px 13px",border:"1px solid "+C.purple+"20"}},
             h("div",{style:{fontSize:"10px",color:C.txd,marginBottom:"3px"}},"ברוטו ללא מע״מ"),
             h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"18px",fontWeight:700,color:C.purple}},fmt(Math.round(grossNoVat),cur)))),
-        h("div",{style:{display:"grid",gridTemplateColumns:"1fr 60px 80px 80px 26px",gap:"5px",padding:"0 8px 4px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"סוג"),h("div",{style:{textAlign:"center"}},"ערך"),h("div",{style:{textAlign:"center"}},"סכום"),h("div",null,"")),
-        h("div",{style:{display:"flex",flexDirection:"column",gap:"3px"}},s.fp1.map(i=>h(FpRow,{key:i.id,item:i,calcAmt:calcFp1,updFn:updFp1,rmFn:rmFp1}))),
+        h("div",{style:{display:"grid",gridTemplateColumns:"20px 1fr 60px 80px 80px 26px",gap:"5px",padding:"0 8px 4px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,""),h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"סוג"),h("div",{style:{textAlign:"center"}},"ערך"),h("div",{style:{textAlign:"center"}},"סכום"),h("div",null,"")),
+        h("div",{style:{display:"flex",flexDirection:"column",gap:"3px"}},s.fp1.map(i=>h(FpRow,{key:i.id,item:i,calcAmt:calcFp1,updFn:updFp1,rmFn:rmFp1,moveFn:moveFp1}))),
         h(AddBtn,{onClick:addFp1}),h("div",{style:{padding:"8px 12px",borderRadius:"8px",background:C.bg,border:"1px solid "+C.bdr,marginTop:"10px",display:"flex",justifyContent:"space-between",alignItems:"center"}},h("span",{style:{fontSize:"11px",color:C.txd}},'מע"מ'),h("span",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"13px",fontWeight:600,color:C.amber}},fmt(Math.round(vatAmt),cur))),h(SecTot,{label:'סה"כ FP#1 (כולל מע"מ)',value:fp1Plan,cur,color:C.red}),h(SecTot,{label:"ברוטו מתוקנת (אחרי FP#1)",value:corrGross,cur,color:C.purple})
       ),
 
@@ -218,15 +217,15 @@ function App(){
         h("div",{style:{background:C.card,borderRadius:"11px",border:"1px solid "+C.bdr,padding:"14px",marginBottom:"8px"}},
           h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}},h("h2",{style:{margin:0,fontSize:"14px"}},"📊 תכנון פיננסי"),h(Badge,{color:C.purple,bg:C.purpleD},"מתוקנת: "+fmt(Math.round(corrGross),cur))),
           h("div",{style:{fontSize:"10px",color:C.txd,fontWeight:600,marginBottom:"4px"}},"הקצאות כלליות"),
-          h("div",{style:{display:"grid",gridTemplateColumns:"1fr 60px 80px 80px 26px",gap:"5px",padding:"0 8px 4px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"סוג"),h("div",{style:{textAlign:"center"}},"ערך"),h("div",{style:{textAlign:"center"}},"סכום"),h("div",null,"")),
-          h("div",{style:{display:"flex",flexDirection:"column",gap:"3px"}},s.fp2.map(i=>h(FpRow,{key:i.id,item:i,calcAmt:calcFp2,updFn:updFp2,rmFn:rmFp2}))),
+          h("div",{style:{display:"grid",gridTemplateColumns:"20px 1fr 60px 80px 80px 26px",gap:"5px",padding:"0 8px 4px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,""),h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"סוג"),h("div",{style:{textAlign:"center"}},"ערך"),h("div",{style:{textAlign:"center"}},"סכום"),h("div",null,"")),
+          h("div",{style:{display:"flex",flexDirection:"column",gap:"3px"}},s.fp2.map(i=>h(FpRow,{key:i.id,item:i,calcAmt:calcFp2,updFn:updFp2,rmFn:rmFp2,moveFn:moveFp2}))),
           h(AddBtn,{onClick:addFp2,label:"+ הוסף הקצאה"}),h(SecTot,{label:'סה"כ כלליות',value:fp2Plan,cur,color:C.amber})),
         divs.map(div=>{const items=(s.divItems||[]).filter(i=>i.divId===div.id);const dT=items.reduce((a,i)=>a+(i.amount||0),0);const isO=expDivs[div.id];
           return h("div",{key:div.id,style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,overflow:"hidden",marginBottom:"5px"}},
             h("div",{onClick:()=>setExpDivs(p=>({...p,[div.id]:!p[div.id]})),style:{padding:"9px 12px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:isO?"1px solid "+C.bdr:"none"}},
               h("div",{style:{display:"flex",alignItems:"center",gap:"7px"}},h(Chev,{open:isO}),h("span",{style:{fontWeight:600,fontSize:"12px"}},div.name)),
               h("span",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",fontWeight:700,color:dT>0?C.blue:C.txm}},fmt(dT,cur))),
-            isO&&h("div",{style:{padding:"8px 12px"}},items.map(i=>h("div",{key:i.id,style:{display:"grid",gridTemplateColumns:"1fr 85px 26px",gap:"5px",alignItems:"center",padding:"5px 0",borderBottom:"1px solid "+C.bdr+"08"}},h(UTxt,{id:"dd_"+i.id,val:i.desc,onChange:v=>updDivItem(i.id,"desc",v),placeholder:"תיאור..."}),h(UNum,{id:"da_"+i.id,val:i.amount,onChange:v=>updDivItem(i.id,"amount",v),w:"75px"}),h(RemBtn,{onClick:()=>rmDivItem(i.id)}))),h(AddBtn,{onClick:()=>addDivItem(div.id),label:"+ פריט"})))}),
+            isO&&h("div",{style:{padding:"8px 12px"}},items.map(i=>h("div",{key:i.id,style:{display:"grid",gridTemplateColumns:"20px 1fr 85px 26px",gap:"5px",alignItems:"center",padding:"5px 0",borderBottom:"1px solid "+C.bdr+"08"}},h(MoveBtn,{onMove:d=>moveDivItem(i.id,d)}),h(UTxt,{id:"dd_"+i.id,val:i.desc,onChange:v=>updDivItem(i.id,"desc",v),placeholder:"תיאור..."}),h(UNum,{id:"da_"+i.id,val:i.amount,onChange:v=>updDivItem(i.id,"amount",v),w:"75px"}),h(RemBtn,{onClick:()=>rmDivItem(i.id)}))),h(AddBtn,{onClick:()=>addDivItem(div.id),label:"+ פריט"})))}),
         h(SecTot,{label:'סה"כ תכנון',value:fp2Plan+divPlan,cur,color:C.amber})),
 
       tab==="approve"&&h("div",null,
@@ -235,8 +234,8 @@ function App(){
           h("p",{style:{margin:"0 0 10px",fontSize:"10px",color:C.txd}},"אשר סכום מלא או חלקי."),
           h("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"5px"}},[{l:"ברוטו",v:s.grossIncome,c:C.blue,b:C.blueD},{l:"מאושר",v:totalApproved,c:C.purple,b:C.purpleD},{l:"נותר",v:remaining,c:remaining>=0?C.green:C.red,b:remaining>=0?C.greenD:C.redD}].map((c,i)=>h(SC,{key:i,label:c.l,value:c.v,color:c.c,bg:c.b,cur,big:true})))),
         h("div",{style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,overflow:"hidden",marginBottom:"6px"}},
-          h("div",{onClick:()=>setExpApp(p=>({...p,fp1:!p.fp1})),style:{padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:expApp.fp1?"1px solid "+C.bdr:"none",background:C.redD+"44"}},h("div",{style:{display:"flex",alignItems:"center",gap:"7px"}},h(Chev,{open:expApp.fp1}),h("span",{style:{fontWeight:700,fontSize:"12px"}},"📋 FP#1")),h(Badge,{color:C.red,bg:C.redD},fmt(s.fp1.reduce((a,i)=>a+(s.approval[i.id]?.approved?s.approval[i.id].approvedAmount:0),0),cur))),
-          expApp.fp1&&h("div",{style:{padding:"8px 14px"}},cH4,s.fp1.map(i=>h(ARow,{key:i.id,id:i.id,desc:i.desc,rAmt:calcFp1(i),extra:i.isPct?i.val+"%":null})))),
+          h("div",{onClick:()=>setExpApp(p=>({...p,fp1:!p.fp1})),style:{padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:expApp.fp1?"1px solid "+C.bdr:"none",background:C.redD+"44"}},h("div",{style:{display:"flex",alignItems:"center",gap:"7px"}},h(Chev,{open:expApp.fp1}),h("span",{style:{fontWeight:700,fontSize:"12px"}},"📋 FP#1")),h(Badge,{color:C.red,bg:C.redD},fmt((s.approval["_vat_"]?.approved?s.approval["_vat_"].approvedAmount:0)+s.fp1.reduce((a,i)=>a+(s.approval[i.id]?.approved?s.approval[i.id].approvedAmount:0),0),cur))),
+          expApp.fp1&&h("div",{style:{padding:"8px 14px"}},cH4,h(ARow,{key:"_vat_",id:"_vat_",desc:'מע"מ',rAmt:vatAmt}),s.fp1.map(i=>h(ARow,{key:i.id,id:i.id,desc:i.desc,rAmt:calcFp1(i),extra:i.isPct?i.val+"%":null})))),
         h("div",{style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,overflow:"hidden",marginBottom:"6px"}},
           h("div",{onClick:()=>setExpApp(p=>({...p,fp2:!p.fp2})),style:{padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:expApp.fp2?"1px solid "+C.bdr:"none",background:C.amberD+"44"}},h("div",{style:{display:"flex",alignItems:"center",gap:"7px"}},h(Chev,{open:expApp.fp2}),h("span",{style:{fontWeight:700,fontSize:"12px"}},"📊 כלליות")),h(Badge,{color:C.amber,bg:C.amberD},fmt(s.fp2.reduce((a,i)=>a+(s.approval[i.id]?.approved?s.approval[i.id].approvedAmount:0),0),cur))),
           expApp.fp2&&h("div",{style:{padding:"8px 14px"}},cH4,s.fp2.map(i=>h(ARow,{key:i.id,id:i.id,desc:i.desc,rAmt:calcFp2(i),extra:i.isPct?i.val+"%":null})))),
@@ -247,7 +246,7 @@ function App(){
         h(SecTot,{label:'סה"כ מאושר',value:totalApproved,cur,color:C.purple}),h(SecTot,{label:"נותר",value:remaining,cur,color:remaining>=0?C.green:C.red})),
 
       tab==="approved"&&(()=>{
-        const ai=allItems.filter(i=>s.approval[i.id]?.approved);const f1=ai.filter(i=>i._src==="fp1");const f2=ai.filter(i=>i._src==="fp2");
+        const ai=allItems.filter(i=>s.approval[i.id]?.approved);const f1vat=ai.filter(i=>i._src==="vat");const f1=ai.filter(i=>i._src==="fp1");const f2=ai.filter(i=>i._src==="fp2");
         const dG={};ai.filter(i=>i._src==="div").forEach(i=>{const d=divs.find(x=>x.id===i.divId);const k=d?.id||"x";if(!dG[k])dG[k]={n:d?.name||"אחר",it:[]};dG[k].it.push(i)});
         const pH=h("div",{style:{padding:"0 12px 4px",display:"grid",gridTemplateColumns:"1fr 75px 85px 75px 70px",gap:"5px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"מאושר"),h("div",{style:{textAlign:"center"}},"שולם"),h("div",{style:{textAlign:"center"}},"יתרה"),h("div",{style:{textAlign:"center"}},"סטטוס"));
         return h("div",null,
@@ -256,7 +255,7 @@ function App(){
             h("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"5px"}},[{l:"מאושר",v:totalApproved,c:C.purple,b:C.purpleD},{l:"שולם",v:totalPaid,c:C.cyan,b:C.cyanD},{l:"ממתין",v:totalApproved-totalPaid,c:C.amber,b:C.amberD},{l:"נותר",v:remaining,c:remaining>=0?C.green:C.red,b:remaining>=0?C.greenD:C.redD}].map((c,i)=>h(SC,{key:i,label:c.l,value:c.v,color:c.c,bg:c.b,cur,big:true})))),
           ai.length===0&&h("div",{style:{textAlign:"center",padding:"30px",color:C.txm,fontSize:"12px"}},'אין פריטים מאושרים.'),
           ai.length>0&&pH,
-          f1.length>0&&h("div",{style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,padding:"8px 12px",marginBottom:"5px"}},h("div",{style:{fontSize:"10px",fontWeight:700,color:C.red,marginBottom:"4px"}},"📋 FP#1"),f1.map(i=>h(PRow,{key:i.id,id:i.id,desc:i.desc,aAmt:s.approval[i.id].approvedAmount,sec:"FP#1"}))),
+          (f1vat.length>0||f1.length>0)&&h("div",{style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,padding:"8px 12px",marginBottom:"5px"}},h("div",{style:{fontSize:"10px",fontWeight:700,color:C.red,marginBottom:"4px"}},"📋 FP#1"),f1vat.map(i=>h(PRow,{key:i.id,id:i.id,desc:i.desc,aAmt:s.approval[i.id].approvedAmount,sec:"FP#1"})),f1.map(i=>h(PRow,{key:i.id,id:i.id,desc:i.desc,aAmt:s.approval[i.id].approvedAmount,sec:"FP#1"}))),
           f2.length>0&&h("div",{style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,padding:"8px 12px",marginBottom:"5px"}},h("div",{style:{fontSize:"10px",fontWeight:700,color:C.amber,marginBottom:"4px"}},"📊 כלליות"),f2.map(i=>h(PRow,{key:i.id,id:i.id,desc:i.desc,aAmt:s.approval[i.id].approvedAmount,sec:"כללי"}))),
           Object.entries(dG).map(([k,g])=>h("div",{key:k,style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,padding:"8px 12px",marginBottom:"5px"}},h("div",{style:{fontSize:"10px",fontWeight:700,color:C.blue,marginBottom:"4px"}},"🏢 "+g.n),g.it.map(i=>h(PRow,{key:i.id,id:i.id,desc:i.desc,aAmt:s.approval[i.id].approvedAmount,sec:g.n})))),
           ai.length>0&&h("div",{style:{marginTop:"10px",padding:"12px 16px",background:"linear-gradient(135deg,"+C.cyanD+","+C.card+")",borderRadius:"11px",border:"1px solid "+C.cyan+"20"}},h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},h("div",null,h("div",{style:{fontSize:"12px",fontWeight:700}},"סיכום — "+MHE[selMonth]),h("div",{style:{fontSize:"10px",color:C.txd,marginTop:"2px"}},ai.filter(i=>s.payment[i.id]?.status==="paid").length+" שולמו · "+ai.filter(i=>s.payment[i.id]?.status==="partial").length+" חלקי · "+ai.filter(i=>!s.payment[i.id]?.status||s.payment[i.id]?.status==="unpaid").length+" ממתינים")),h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"18px",fontWeight:700,color:C.cyan}},fmt(totalPaid,cur),h("span",{style:{fontSize:"10px",color:C.txd,fontWeight:400}}," / "+fmt(totalApproved,cur))))))})()
