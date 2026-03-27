@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BUZZ תכנון פיננסי</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #090c10; }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #11151d; }
+  ::-webkit-scrollbar-thumb { background: #283042; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script type="text/babel">
+const { useState, useCallback, useEffect, useRef } = React;
+
+
+
+function gid() { return "i" + Math.random().toString(36).slice(2, 9); }
+function fmt(n, cur) {
+  const sym = cur === "$" ? "$" : "₪";
+  const abs = Math.abs(Math.round(n));
+  return n < 0 ? `${sym}${abs.toLocaleString("en-US")}-` : `${sym}${abs.toLocaleString("en-US")}`;
+}
+
+const MONTHS_HE = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+
+function monthKey(y, m) { return `${y}-${String(m + 1).padStart(2, "0")}`; }
+
+const DIVS = [
+  { id: "div1", name: "דיביזיה 1 — ייסוד ותקשורות" },
+  { id: "div2", name: "דיביזיה 2 — הפצה" },
+  { id: "div3", name: "דיביזיה 3 — אוצר" },
+  { id: "div4", name: "דיביזיה 4 — ייצור" },
+  { id: "div5", name: "דיביזיה 5 — הסמכות" },
+  { id: "div6", name: "דיביזיה 6 — תפוצה (קידום)" },
+  { id: "div7", name: "דיביזיה 7 — מנהלים" },
+];
+
+function freshMonth() {
+  return {
+    grossIncome: 0,
+    fp1: [
+      { id: gid(), desc: 'מע"מ', val: 17, isPct: true },
+      { id: gid(), desc: "ביטוח לאומי", val: 10, isPct: true },
+      { id: gid(), desc: "מס הכנסה", val: 10, isPct: true },
+    ],
+    fp2: [],
+    divisions: DIVS.map(d => ({ ...d })),
+    divItems: [],
+    approval: {},
+    payment: {},
+  };
+}
+
+async function loadAll() { try { const r = localStorage.getItem("fp-v4"); return r ? JSON.parse(r) : null; } catch { return null; } }
+async function saveAll(d) { try { localStorage.setItem("fp-v4", JSON.stringify(d)); } catch {} }
+
+const C = {
+  bg: "#090c10", card: "#11151d", card2: "#171c27",
+  bdr: "#1e2535", bdr2: "#283042",
+  tx: "#e2e6ed", txd: "#7b8a9e", txm: "#4a5568",
+  blue: "#3b82f6", blueD: "#132850",
+  green: "#10b981", greenD: "#0a2b20",
+  red: "#ef4444", redD: "#2d0e0e",
+  amber: "#f59e0b", amberD: "#2a1d06",
+  purple: "#a78bfa", purpleD: "#1c1340",
+  cyan: "#06b6d4", cyanD: "#0a2530",
+};
+
+const Badge = ({ children, color, bg }) => <span style={{ background: bg, color, padding: "2px 9px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", whiteSpace: "nowrap" }}>{children}</span>;
+const AddBtn = ({ onClick, label = "+ הוסף שורה" }) => <button onClick={onClick} style={{ marginTop: "7px", width: "100%", background: "transparent", border: `1px dashed ${C.bdr2}`, color: C.blue, padding: "8px", borderRadius: "7px", cursor: "pointer", fontSize: "11px", fontFamily: "inherit", fontWeight: 600 }} onMouseOver={e => e.currentTarget.style.borderColor = C.blue} onMouseOut={e => e.currentTarget.style.borderColor = C.bdr2}>{label}</button>;
+const RemBtn = ({ onClick }) => <button onClick={onClick} style={{ background: "transparent", border: "none", color: C.txm, cursor: "pointer", fontSize: "13px", padding: "3px 5px", borderRadius: "4px", lineHeight: 1 }} onMouseOver={e => e.currentTarget.style.color = C.red} onMouseOut={e => e.currentTarget.style.color = C.txm}>✕</button>;
+const NI = ({ value, onChange, color = "#60a5fa", w = "80px" }) => <input type="number" value={value} onChange={e => onChange(parseFloat(e.target.value) || 0)} style={{ background: C.bg, border: `1px solid ${C.bdr}`, color, borderRadius: "5px", padding: "5px 6px", fontSize: "12px", fontFamily: "'JetBrains Mono',monospace", textAlign: "center", outline: "none", width: w }} onFocus={e => e.currentTarget.style.borderColor = C.blue} onBlur={e => e.currentTarget.style.borderColor = C.bdr} />;
+const TI = ({ value, onChange, placeholder = "" }) => <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={{ background: "transparent", border: "none", color: C.tx, fontSize: "12px", fontFamily: "inherit", outline: "none", borderBottom: `1px solid ${C.bdr}`, paddingBottom: "2px", width: "100%" }} />;
+const SecTot = ({ label, value, cur, color }) => <div style={{ padding: "10px 14px", borderRadius: "9px", background: color === C.green ? C.greenD : color === C.red ? C.redD : color === C.purple ? C.purpleD : color === C.amber ? C.amberD : C.blueD, border: `1px solid ${color}20`, display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "10px" }}><span style={{ fontWeight: 600, fontSize: "12px" }}>{label}</span><span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "15px", fontWeight: 700, color }}>{fmt(value, cur)}</span></div>;
+const Chev = ({ open }) => <span style={{ transform: open ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.15s", display: "inline-block", fontSize: "10px", color: C.txm }}>▶</span>;
+
+function exportCSV(s, calcFp1, calcFp2, cur, mk) {
+  const rows = [["מקור", "תיאור", "מבוקש", "מאושר", "שולם", "סטטוס"]];
+  rows.push(["חודש", mk, "", "", "", ""]);
+  rows.push(["הכנסה ברוטו", "", s.grossIncome, "", "", ""]);
+  rows.push([]);
+  const addItems = (sec, items, amtFn) => {
+    items.forEach(i => {
+      const amt = amtFn(i);
+      const ap = s.approval[i.id]; const py = s.payment[i.id];
+      const aAmt = ap?.approved ? ap.approvedAmount : 0;
+      const pAmt = py?.paidAmount || 0;
+      const st = !ap?.approved ? "לא מאושר" : py?.status === "paid" ? "שולם במלואו" : py?.status === "partial" ? "שולם חלקית" : "ממתין";
+      rows.push([sec, i.desc || "", Math.round(amt), aAmt, pAmt, st]);
+    });
+  };
+  rows.push(["=== FP#1 ==="]); addItems("FP#1", s.fp1, calcFp1);
+  rows.push([]); rows.push(["=== הקצאות כלליות ==="]); addItems("כללי", s.fp2, calcFp2);
+  (s.divisions || []).forEach(div => {
+    const items = (s.divItems || []).filter(x => x.divId === div.id);
+    if (items.length) { rows.push([]); rows.push([`=== ${div.name} ===`]); addItems(div.name, items, i => i.amount || 0); }
+  });
+  const bom = "\uFEFF";
+  const csv = rows.map(r => r.map(c => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = `FP_BUZZ_${mk}.csv`; a.click(); URL.revokeObjectURL(url);
+}
+
+function App() {
+  const [data, setData] = useState(null); // { currency, months: { "2026-03": {...}, ... } }
+  const now = new Date();
+  const [selYear, setSelYear] = useState(now.getFullYear());
+  const [selMonth, setSelMonth] = useState(now.getMonth());
+  const [tab, setTab] = useState("fp1");
+  const [expDivs, setExpDivs] = useState({});
+  const [expApp, setExpApp] = useState({ fp1: true, fp2: true });
+  const [editDivName, setEditDivName] = useState(null);
+  const [showReset, setShowReset] = useState(false);
+  const [showCopyFrom, setShowCopyFrom] = useState(false);
+  const loaded = useRef(false);
+
+  const mk = monthKey(selYear, selMonth);
+
+  useEffect(() => {
+    loadAll().then(d => {
+      if (!d) d = { currency: "₪", months: {} };
+      if (!d.months) d.months = {};
+      setData(d);
+      DIVS.forEach(dv => setExpDivs(p => ({ ...p, [dv.id]: true })));
+      loaded.current = true;
+    });
+  }, []);
+
+  useEffect(() => { if (loaded.current && data) saveAll(data); }, [data]);
+
+  const getMonth = useCallback(() => {
+    if (!data) return freshMonth();
+    return data.months[mk] || freshMonth();
+  }, [data, mk]);
+
+  const setMonth = useCallback((fn) => {
+    setData(prev => {
+      const m = prev.months[mk] || freshMonth();
+      const updated = fn(m);
+      return { ...prev, months: { ...prev.months, [mk]: { ...updated } } };
+    });
+  }, [mk]);
+
+  if (!data) return <div style={{ background: C.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: C.txd, fontFamily: "system-ui" }}>טוען...</div>;
+
+  const s = getMonth();
+  const cur = data.currency || "₪";
+
+  const calcFp1 = i => i.isPct ? (s.grossIncome * i.val / 100) : i.val;
+  const fp1Plan = s.fp1.reduce((a, i) => a + calcFp1(i), 0);
+  const corrGross = s.grossIncome - fp1Plan;
+  const calcFp2 = i => i.isPct ? (corrGross * i.val / 100) : i.val;
+  const fp2Plan = s.fp2.reduce((a, i) => a + calcFp2(i), 0);
+  const divPlan = (s.divItems || []).reduce((a, i) => a + (i.amount || 0), 0);
+  const totalPlan = fp1Plan + fp2Plan + divPlan;
+
+  const allItems = [...s.fp1.map(i => ({ ...i, _amt: calcFp1(i), _src: "fp1" })), ...s.fp2.map(i => ({ ...i, _amt: calcFp2(i), _src: "fp2" })), ...(s.divItems || []).map(i => ({ ...i, _amt: i.amount || 0, _src: "div" }))];
+  const totalApproved = allItems.reduce((a, i) => a + (s.approval[i.id]?.approved ? s.approval[i.id].approvedAmount : 0), 0);
+  const totalPaid = allItems.reduce((a, i) => a + (s.payment[i.id]?.paidAmount || 0), 0);
+  const remaining = s.grossIncome - totalApproved;
+
+  const toggleCur = () => setData(p => ({ ...p, currency: p.currency === "₪" ? "$" : "₪" }));
+  const setGross = v => setMonth(m => ({ ...m, grossIncome: v }));
+  const addFp1 = () => setMonth(m => ({ ...m, fp1: [...m.fp1, { id: gid(), desc: "", val: 0, isPct: false }] }));
+  const updFp1 = (id, f, v) => setMonth(m => ({ ...m, fp1: m.fp1.map(i => i.id === id ? { ...i, [f]: v } : i) }));
+  const rmFp1 = id => setMonth(m => { const ap = { ...m.approval }; delete ap[id]; const py = { ...m.payment }; delete py[id]; return { ...m, fp1: m.fp1.filter(i => i.id !== id), approval: ap, payment: py }; });
+  const addFp2 = () => setMonth(m => ({ ...m, fp2: [...m.fp2, { id: gid(), desc: "", val: 0, isPct: false }] }));
+  const updFp2 = (id, f, v) => setMonth(m => ({ ...m, fp2: m.fp2.map(i => i.id === id ? { ...i, [f]: v } : i) }));
+  const rmFp2 = id => setMonth(m => { const ap = { ...m.approval }; delete ap[id]; const py = { ...m.payment }; delete py[id]; return { ...m, fp2: m.fp2.filter(i => i.id !== id), approval: ap, payment: py }; });
+  const updDivName = (id, n) => setMonth(m => ({ ...m, divisions: (m.divisions || DIVS).map(d => d.id === id ? { ...d, name: n } : d) }));
+  const addDivItem = dId => setMonth(m => ({ ...m, divItems: [...(m.divItems || []), { id: gid(), divId: dId, desc: "", amount: 0 }] }));
+  const updDivItem = (id, f, v) => setMonth(m => ({ ...m, divItems: (m.divItems || []).map(i => i.id === id ? { ...i, [f]: v } : i) }));
+  const rmDivItem = id => setMonth(m => { const ap = { ...m.approval }; delete ap[id]; const py = { ...m.payment }; delete py[id]; return { ...m, divItems: (m.divItems || []).filter(i => i.id !== id), approval: ap, payment: py }; });
+  const setApproval = (id, approved, approvedAmount) => setMonth(m => ({ ...m, approval: { ...m.approval, [id]: { approved, approvedAmount: approved ? approvedAmount : 0 } } }));
+  const setPayment = (id, paidAmount) => {
+    const apAmt = s.approval[id]?.approvedAmount || 0;
+    const status = paidAmount >= apAmt && apAmt > 0 ? "paid" : paidAmount > 0 ? "partial" : "unpaid";
+    setMonth(m => ({ ...m, payment: { ...m.payment, [id]: { status, paidAmount } } }));
+  };
+
+  const resetMonth = () => { setMonth(() => freshMonth()); setShowReset(false); };
+
+  // Copy from another month
+  const existingMonths = Object.keys(data.months).filter(k => k !== mk && data.months[k].grossIncome > 0).sort().reverse();
+  const copyFromMonth = (srcKey) => {
+    const src = data.months[srcKey];
+    if (!src) return;
+    // Deep copy but with new IDs mapped
+    const idMap = {};
+    const mapItem = (item) => { const nid = gid(); idMap[item.id] = nid; return { ...item, id: nid }; };
+    const newFp1 = src.fp1.map(mapItem);
+    const newFp2 = src.fp2.map(mapItem);
+    const newDivItems = (src.divItems || []).map(mapItem);
+    setMonth(() => ({
+      grossIncome: src.grossIncome,
+      fp1: newFp1, fp2: newFp2,
+      divisions: (src.divisions || DIVS).map(d => ({ ...d })),
+      divItems: newDivItems,
+      approval: {}, payment: {},
+    }));
+    setShowCopyFrom(false);
+  };
+
+  const prevMonth = () => {
+    if (selMonth === 0) { setSelMonth(11); setSelYear(y => y - 1); }
+    else setSelMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (selMonth === 11) { setSelMonth(0); setSelYear(y => y + 1); }
+    else setSelMonth(m => m + 1);
+  };
+
+  const divs = s.divisions || DIVS;
+  const tabs = [
+    { key: "fp1", label: "FP#1 חובות", icon: "📋" },
+    { key: "fp2", label: "FP#2 תכנון", icon: "📊" },
+    { key: "approve", label: "אישור", icon: "🔍" },
+    { key: "approved", label: "מאושרות", icon: "✅" },
+  ];
+
+  const ApprovalRow = ({ id, desc, requestedAmt, extra }) => {
+    const ap = s.approval[id] || {};
+    const isA = !!ap.approved;
+    const aAmt = ap.approvedAmount || 0;
+    return (
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 95px 75px", gap: "5px", alignItems: "center", padding: "7px 0", borderBottom: `1px solid ${C.bdr}08` }}>
+        <div><div style={{ fontSize: "12px", color: isA ? C.tx : C.txd }}>{desc || "(ללא תיאור)"}</div>{extra && <div style={{ fontSize: "10px", color: C.txm }}>{extra}</div>}</div>
+        <div style={{ textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: "11px", color: C.txd }}>{fmt(Math.round(requestedAmt), cur)}</div>
+        <div><input type="number" value={isA ? aAmt : ""} placeholder="סכום" onChange={e => { const v = parseFloat(e.target.value) || 0; setApproval(id, v > 0, v); }}
+          style={{ background: C.bg, border: `1px solid ${isA ? C.green : C.bdr}`, color: isA ? C.green : C.txd, borderRadius: "5px", padding: "4px 5px", fontSize: "11px", fontFamily: "'JetBrains Mono',monospace", textAlign: "center", outline: "none", width: "85px" }} /></div>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <button onClick={() => { if (isA) setApproval(id, false, 0); else setApproval(id, true, Math.round(requestedAmt)); }}
+            style={{ background: isA ? C.greenD : `${C.bdr}55`, border: `1px solid ${isA ? C.green : C.bdr}44`, color: isA ? C.green : C.txm, borderRadius: "5px", padding: "3px 8px", cursor: "pointer", fontSize: "10px", fontWeight: 700, fontFamily: "inherit" }}>
+            {isA ? "✓" : "אשר"}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const PaymentRow = ({ id, desc, approvedAmt, section }) => {
+    const py = s.payment[id] || {};
+    const pAmt = py.paidAmount || 0;
+    const status = py.status || "unpaid";
+    const stLabel = status === "paid" ? "שולם" : status === "partial" ? "חלקי" : "ממתין";
+    const stColor = status === "paid" ? C.green : status === "partial" ? C.amber : C.txm;
+    return (
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 75px 85px 75px 70px", gap: "5px", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${C.bdr}08` }}>
+        <div><div style={{ fontSize: "11px", color: C.tx }}>{desc}</div><div style={{ fontSize: "9px", color: C.txm }}>{section}</div></div>
+        <div style={{ textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: "11px", color: C.tx }}>{fmt(approvedAmt, cur)}</div>
+        <div><input type="number" value={pAmt || ""} placeholder="0" onChange={e => setPayment(id, parseFloat(e.target.value) || 0)}
+          style={{ background: C.bg, border: `1px solid ${C.bdr}`, color: pAmt > 0 ? C.cyan : C.txd, borderRadius: "5px", padding: "4px 5px", fontSize: "11px", fontFamily: "'JetBrains Mono',monospace", textAlign: "center", outline: "none", width: "75px" }} /></div>
+        <div style={{ textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: "11px", color: C.txd }}>{fmt(approvedAmt - pAmt, cur)}</div>
+        <div style={{ display: "flex", justifyContent: "center" }}><span style={{ fontSize: "10px", fontWeight: 600, color: stColor, background: `${stColor}15`, padding: "2px 8px", borderRadius: "8px", whiteSpace: "nowrap" }}>{stLabel}</span></div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ fontFamily: "'Segoe UI','Noto Sans Hebrew',system-ui,sans-serif", background: C.bg, color: C.tx, minHeight: "100vh", direction: "rtl" }}>
+      <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+
+      {/* HEADER */}
+      <div style={{ background: `linear-gradient(180deg,${C.card2},${C.bg})`, borderBottom: `1px solid ${C.bdr}`, padding: "14px 14px 0", position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ maxWidth: 960, margin: "0 auto" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+            <h1 style={{ margin: 0, fontSize: "17px", fontWeight: 700 }}><span style={{ color: C.blue }}>BUZZ</span> תכנון פיננסי</h1>
+            <div style={{ display: "flex", gap: "5px", alignItems: "center" }}>
+              <div style={{ display: "flex", borderRadius: "5px", overflow: "hidden", border: `1px solid ${C.bdr}` }}>
+                {["₪", "$"].map(c => <button key={c} onClick={toggleCur} style={{ background: cur === c ? C.blue : "transparent", border: "none", color: cur === c ? "#fff" : C.txd, padding: "2px 9px", cursor: "pointer", fontSize: "11px", fontWeight: 600, fontFamily: "inherit" }}>{c}</button>)}
+              </div>
+              <button onClick={() => exportCSV(s, calcFp1, calcFp2, cur, mk)} style={{ background: C.greenD, border: `1px solid ${C.green}33`, color: C.green, padding: "2px 8px", borderRadius: "5px", cursor: "pointer", fontSize: "10px", fontFamily: "inherit", fontWeight: 600 }}>📥 ייצוא</button>
+              <button onClick={() => setShowReset(true)} style={{ background: "transparent", border: `1px solid ${C.bdr}`, color: C.txm, padding: "2px 7px", borderRadius: "5px", cursor: "pointer", fontSize: "9px", fontFamily: "inherit" }}>איפוס חודש</button>
+            </div>
+          </div>
+
+          {/* Month selector */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", marginBottom: "12px", background: C.card, borderRadius: "10px", padding: "8px 16px", border: `1px solid ${C.bdr}` }}>
+            <button onClick={prevMonth} style={{ background: "transparent", border: "none", color: C.txd, cursor: "pointer", fontSize: "16px", fontFamily: "inherit", padding: "2px 8px" }}>◀</button>
+            <div style={{ textAlign: "center", minWidth: "140px" }}>
+              <div style={{ fontSize: "18px", fontWeight: 700, color: C.blue }}>{MONTHS_HE[selMonth]}</div>
+              <div style={{ fontSize: "12px", color: C.txd }}>{selYear}</div>
+            </div>
+            <button onClick={nextMonth} style={{ background: "transparent", border: "none", color: C.txd, cursor: "pointer", fontSize: "16px", fontFamily: "inherit", padding: "2px 8px" }}>▶</button>
+            {existingMonths.length > 0 && (
+              <button onClick={() => setShowCopyFrom(!showCopyFrom)} style={{ background: C.purpleD, border: `1px solid ${C.purple}33`, color: C.purple, padding: "3px 10px", borderRadius: "5px", cursor: "pointer", fontSize: "10px", fontFamily: "inherit", fontWeight: 600, marginRight: "8px" }}>📋 העתק מחודש</button>
+            )}
+          </div>
+
+          {/* Copy from modal */}
+          {showCopyFrom && existingMonths.length > 0 && (
+            <div style={{ background: C.card, border: `1px solid ${C.bdr}`, borderRadius: "8px", padding: "10px 14px", marginBottom: "10px" }}>
+              <div style={{ fontSize: "11px", color: C.txd, marginBottom: "6px" }}>בחר חודש להעתקה (יועתק התכנון, ללא אישורים ותשלומים):</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                {existingMonths.map(k => {
+                  const [y, m] = k.split("-");
+                  return <button key={k} onClick={() => copyFromMonth(k)} style={{ background: C.bg, border: `1px solid ${C.bdr}`, color: C.tx, padding: "4px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "11px", fontFamily: "inherit" }}>{MONTHS_HE[parseInt(m) - 1]} {y}</button>;
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Summary cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "5px", marginBottom: "10px" }}>
+            {[
+              { l: "ברוטו", v: s.grossIncome, c: C.blue, b: C.blueD },
+              { l: "מתוכנן", v: totalPlan, c: C.amber, b: C.amberD },
+              { l: "מאושר", v: totalApproved, c: C.purple, b: C.purpleD },
+              { l: "שולם", v: totalPaid, c: C.cyan, b: C.cyanD },
+              { l: "נותר", v: remaining, c: remaining >= 0 ? C.green : C.red, b: remaining >= 0 ? C.greenD : C.redD },
+            ].map((c, i) => (
+              <div key={i} style={{ background: c.b, borderRadius: "8px", padding: "7px 9px", border: `1px solid ${c.c}15` }}>
+                <div style={{ fontSize: "9px", color: C.txd, whiteSpace: "nowrap" }}>{c.l}</div>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "13px", fontWeight: 700, color: c.c }}>{fmt(c.v, cur)}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tabs */}
+          <div style={{ display: "flex", gap: "2px" }}>
+            {tabs.map(t => (
+              <button key={t.key} onClick={() => setTab(t.key)} style={{
+                background: tab === t.key ? C.card : "transparent",
+                border: `1px solid ${tab === t.key ? C.bdr2 : "transparent"}`,
+                borderBottom: tab === t.key ? `1px solid ${C.card}` : `1px solid ${C.bdr}`,
+                color: tab === t.key ? C.tx : C.txd,
+                padding: "8px 12px", borderRadius: "7px 7px 0 0",
+                cursor: "pointer", fontSize: "11px", fontWeight: tab === t.key ? 700 : 400,
+                fontFamily: "inherit", marginBottom: "-1px", whiteSpace: "nowrap",
+              }}>{t.icon} {t.label}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* CONTENT */}
+      <div style={{ maxWidth: 960, margin: "0 auto", padding: "14px" }}>
+
+        {/* FP#1 */}
+        {tab === "fp1" && (
+          <div style={{ background: C.card, borderRadius: "11px", border: `1px solid ${C.bdr}`, padding: "16px" }}>
+            <h2 style={{ margin: "0 0 3px", fontSize: "14px" }}>📋 תכנון פיננסי #1 — חובות</h2>
+            <p style={{ margin: "0 0 12px", fontSize: "10px", color: C.txd }}>מיסים, ביטוח, ספקים, משכורות. תכנון בלבד.</p>
+            <div style={{ background: `linear-gradient(135deg,${C.blueD},${C.purpleD})`, borderRadius: "9px", padding: "11px 13px", marginBottom: "12px", border: `1px solid ${C.blue}20` }}>
+              <div style={{ fontSize: "10px", color: C.txd, marginBottom: "3px" }}>הכנסה ברוטו — {MONTHS_HE[selMonth]} {selYear}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                <span style={{ fontSize: "15px", color: C.blue, fontWeight: 700 }}>{cur}</span>
+                <input type="number" value={s.grossIncome} onChange={e => setGross(parseFloat(e.target.value) || 0)} style={{ background: "transparent", border: "none", color: C.tx, fontSize: "22px", fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", outline: "none", width: "100%" }} />
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 60px 80px 80px 26px", gap: "5px", padding: "0 8px 4px", fontSize: "9px", color: C.txm, fontWeight: 700 }}>
+              <div>תיאור</div><div style={{ textAlign: "center" }}>סוג</div><div style={{ textAlign: "center" }}>ערך</div><div style={{ textAlign: "center" }}>סכום</div><div></div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+              {s.fp1.map(item => {
+                const amt = calcFp1(item);
+                return (
+                  <div key={item.id} style={{ display: "grid", gridTemplateColumns: "1fr 60px 80px 80px 26px", gap: "5px", alignItems: "center", padding: "6px 8px", background: C.bg, borderRadius: "6px", border: `1px solid ${C.bdr}` }}>
+                    <TI value={item.desc} onChange={v => updFp1(item.id, "desc", v)} placeholder="תיאור..." />
+                    <div style={{ display: "flex", justifyContent: "center" }}>
+                      <button onClick={() => updFp1(item.id, "isPct", !item.isPct)} style={{ background: item.isPct ? C.blueD : C.greenD, border: `1px solid ${item.isPct ? C.blue : C.green}44`, color: item.isPct ? C.blue : C.green, borderRadius: "4px", padding: "1px 6px", cursor: "pointer", fontSize: "10px", fontWeight: 700, fontFamily: "inherit" }}>{item.isPct ? "%" : cur}</button>
+                    </div>
+                    <NI value={item.val} onChange={v => updFp1(item.id, "val", v)} w="70px" />
+                    <div style={{ textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: "11px", color: C.txd }}>{fmt(Math.round(amt), cur)}</div>
+                    <RemBtn onClick={() => rmFp1(item.id)} />
+                  </div>
+                );
+              })}
+            </div>
+            <AddBtn onClick={addFp1} />
+            <SecTot label={'סה"כ FP#1'} value={fp1Plan} cur={cur} color={C.red} />
+            <SecTot label="ברוטו מתוקנת" value={corrGross} cur={cur} color={C.purple} />
+          </div>
+        )}
+
+        {/* FP#2 */}
+        {tab === "fp2" && (
+          <div>
+            <div style={{ background: C.card, borderRadius: "11px", border: `1px solid ${C.bdr}`, padding: "14px", marginBottom: "8px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <h2 style={{ margin: 0, fontSize: "14px" }}>📊 תכנון פיננסי — שיקול דעת</h2>
+                <Badge color={C.purple} bg={C.purpleD}>מתוקנת: {fmt(Math.round(corrGross), cur)}</Badge>
+              </div>
+              <div style={{ fontSize: "10px", color: C.txd, fontWeight: 600, marginBottom: "4px" }}>הקצאות כלליות</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 60px 80px 80px 26px", gap: "5px", padding: "0 8px 4px", fontSize: "9px", color: C.txm, fontWeight: 700 }}>
+                <div>תיאור</div><div style={{ textAlign: "center" }}>סוג</div><div style={{ textAlign: "center" }}>ערך</div><div style={{ textAlign: "center" }}>סכום</div><div></div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                {s.fp2.map(item => {
+                  const amt = calcFp2(item);
+                  return (
+                    <div key={item.id} style={{ display: "grid", gridTemplateColumns: "1fr 60px 80px 80px 26px", gap: "5px", alignItems: "center", padding: "6px 8px", background: C.bg, borderRadius: "6px", border: `1px solid ${C.bdr}` }}>
+                      <TI value={item.desc} onChange={v => updFp2(item.id, "desc", v)} />
+                      <div style={{ display: "flex", justifyContent: "center" }}>
+                        <button onClick={() => updFp2(item.id, "isPct", !item.isPct)} style={{ background: item.isPct ? C.blueD : C.greenD, border: `1px solid ${item.isPct ? C.blue : C.green}44`, color: item.isPct ? C.blue : C.green, borderRadius: "4px", padding: "1px 6px", cursor: "pointer", fontSize: "10px", fontWeight: 700, fontFamily: "inherit" }}>{item.isPct ? "%" : cur}</button>
+                      </div>
+                      <NI value={item.val} onChange={v => updFp2(item.id, "val", v)} w="70px" />
+                      <div style={{ textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: "11px", color: C.txd }}>{fmt(Math.round(amt), cur)}</div>
+                      <RemBtn onClick={() => rmFp2(item.id)} />
+                    </div>
+                  );
+                })}
+              </div>
+              <AddBtn onClick={addFp2} label="+ הוסף הקצאה" />
+              <SecTot label="סה\"כ כלליות" value={fp2Plan} cur={cur} color={C.amber} />
+            </div>
+            {divs.map(div => {
+              const items = (s.divItems || []).filter(i => i.divId === div.id);
+              const dT = items.reduce((a, i) => a + (i.amount || 0), 0);
+              const isOpen = expDivs[div.id];
+              return (
+                <div key={div.id} style={{ background: C.card, borderRadius: "9px", border: `1px solid ${C.bdr}`, overflow: "hidden", marginBottom: "5px" }}>
+                  <div onClick={() => toggleExpDiv(div.id)} style={{ padding: "9px 12px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: isOpen ? `1px solid ${C.bdr}` : "none" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+                      <Chev open={isOpen} />
+                      {editDivName === div.id ? <input autoFocus value={div.name} onClick={e => e.stopPropagation()} onChange={e => updDivName(div.id, e.target.value)} onBlur={() => setEditDivName(null)} onKeyDown={e => e.key === "Enter" && setEditDivName(null)} style={{ background: C.bg, border: `1px solid ${C.blue}`, color: C.tx, borderRadius: "3px", padding: "1px 5px", fontSize: "11px", fontFamily: "inherit", outline: "none" }} />
+                        : <span onDoubleClick={e => { e.stopPropagation(); setEditDivName(div.id); }} style={{ fontWeight: 600, fontSize: "12px" }}>{div.name}</span>}
+                    </div>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "11px", fontWeight: 700, color: dT > 0 ? C.blue : C.txm }}>{fmt(dT, cur)}</span>
+                  </div>
+                  {isOpen && (
+                    <div style={{ padding: "8px 12px" }}>
+                      {items.map(item => (
+                        <div key={item.id} style={{ display: "grid", gridTemplateColumns: "1fr 85px 26px", gap: "5px", alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${C.bdr}08` }}>
+                          <TI value={item.desc} onChange={v => updDivItem(item.id, "desc", v)} placeholder="תיאור..." />
+                          <NI value={item.amount} onChange={v => updDivItem(item.id, "amount", v)} w="75px" />
+                          <RemBtn onClick={() => rmDivItem(item.id)} />
+                        </div>
+                      ))}
+                      <AddBtn onClick={() => addDivItem(div.id)} label="+ פריט" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <SecTot label="סה\"כ תכנון" value={fp2Plan + divPlan} cur={cur} color={C.amber} />
+          </div>
+        )}
+
+        {/* APPROVE */}
+        {tab === "approve" && (
+          <div>
+            <div style={{ background: C.card, borderRadius: "11px", border: `1px solid ${C.bdr}`, padding: "14px", marginBottom: "10px" }}>
+              <h2 style={{ margin: "0 0 3px", fontSize: "14px" }}>🔍 אישור הקצאות — {MONTHS_HE[selMonth]} {selYear}</h2>
+              <p style={{ margin: "0 0 10px", fontSize: "10px", color: C.txd }}>אשר סכום מלא או חלקי. הזן סכום ידנית או לחץ "אשר".</p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "5px" }}>
+                {[
+                  { l: "ברוטו", v: s.grossIncome, c: C.blue, b: C.blueD },
+                  { l: "מאושר", v: totalApproved, c: C.purple, b: C.purpleD },
+                  { l: "נותר", v: remaining, c: remaining >= 0 ? C.green : C.red, b: remaining >= 0 ? C.greenD : C.redD },
+                ].map((c, i) => (
+                  <div key={i} style={{ background: c.b, borderRadius: "7px", padding: "7px 10px", border: `1px solid ${c.c}15` }}>
+                    <div style={{ fontSize: "9px", color: C.txd }}>{c.l}</div>
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "15px", fontWeight: 700, color: c.c }}>{fmt(c.v, cur)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* FP#1 */}
+            <div style={{ background: C.card, borderRadius: "9px", border: `1px solid ${C.bdr}`, overflow: "hidden", marginBottom: "6px" }}>
+              <div onClick={() => setExpApp(p => ({ ...p, fp1: !p.fp1 }))} style={{ padding: "10px 14px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: expApp.fp1 ? `1px solid ${C.bdr}` : "none", background: `${C.redD}44` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "7px" }}><Chev open={expApp.fp1} /><span style={{ fontWeight: 700, fontSize: "12px" }}>📋 FP#1 — חובות</span></div>
+                <Badge color={C.red} bg={C.redD}>{fmt(s.fp1.reduce((a, i) => a + (s.approval[i.id]?.approved ? s.approval[i.id].approvedAmount : 0), 0), cur)}</Badge>
+              </div>
+              {expApp.fp1 && <div style={{ padding: "8px 14px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 95px 75px", gap: "5px", padding: "0 0 4px", fontSize: "9px", color: C.txm, fontWeight: 700 }}><div>תיאור</div><div style={{ textAlign: "center" }}>מבוקש</div><div style={{ textAlign: "center" }}>מאושר</div><div style={{ textAlign: "center" }}>אישור</div></div>
+                {s.fp1.map(i => <ApprovalRow key={i.id} id={i.id} desc={i.desc} requestedAmt={calcFp1(i)} extra={i.isPct ? `${i.val}%` : null} />)}
+              </div>}
+            </div>
+            {/* FP#2 */}
+            <div style={{ background: C.card, borderRadius: "9px", border: `1px solid ${C.bdr}`, overflow: "hidden", marginBottom: "6px" }}>
+              <div onClick={() => setExpApp(p => ({ ...p, fp2: !p.fp2 }))} style={{ padding: "10px 14px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: expApp.fp2 ? `1px solid ${C.bdr}` : "none", background: `${C.amberD}44` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "7px" }}><Chev open={expApp.fp2} /><span style={{ fontWeight: 700, fontSize: "12px" }}>📊 הקצאות כלליות</span></div>
+                <Badge color={C.amber} bg={C.amberD}>{fmt(s.fp2.reduce((a, i) => a + (s.approval[i.id]?.approved ? s.approval[i.id].approvedAmount : 0), 0), cur)}</Badge>
+              </div>
+              {expApp.fp2 && <div style={{ padding: "8px 14px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 95px 75px", gap: "5px", padding: "0 0 4px", fontSize: "9px", color: C.txm, fontWeight: 700 }}><div>תיאור</div><div style={{ textAlign: "center" }}>מבוקש</div><div style={{ textAlign: "center" }}>מאושר</div><div style={{ textAlign: "center" }}>אישור</div></div>
+                {s.fp2.map(i => <ApprovalRow key={i.id} id={i.id} desc={i.desc} requestedAmt={calcFp2(i)} extra={i.isPct ? `${i.val}%` : null} />)}
+              </div>}
+            </div>
+            {/* Divs */}
+            {divs.map(div => {
+              const items = (s.divItems || []).filter(i => i.divId === div.id);
+              if (!items.length) return null;
+              const dA = items.reduce((a, i) => a + (s.approval[i.id]?.approved ? s.approval[i.id].approvedAmount : 0), 0);
+              const isOpen = expDivs[div.id];
+              return (
+                <div key={div.id} style={{ background: C.card, borderRadius: "9px", border: `1px solid ${C.bdr}`, overflow: "hidden", marginBottom: "5px" }}>
+                  <div onClick={() => toggleExpDiv(div.id)} style={{ padding: "9px 12px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: isOpen ? `1px solid ${C.bdr}` : "none", background: `${C.blueD}44` }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "7px" }}><Chev open={isOpen} /><span style={{ fontWeight: 600, fontSize: "11px" }}>🏢 {div.name}</span></div>
+                    <Badge color={C.blue} bg={C.blueD}>{fmt(dA, cur)}</Badge>
+                  </div>
+                  {isOpen && <div style={{ padding: "8px 12px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 95px 75px", gap: "5px", padding: "0 0 4px", fontSize: "9px", color: C.txm, fontWeight: 700 }}><div>תיאור</div><div style={{ textAlign: "center" }}>מבוקש</div><div style={{ textAlign: "center" }}>מאושר</div><div style={{ textAlign: "center" }}>אישור</div></div>
+                    {items.map(i => <ApprovalRow key={i.id} id={i.id} desc={i.desc} requestedAmt={i.amount || 0} />)}
+                  </div>}
+                </div>
+              );
+            })}
+            <SecTot label="סה\"כ מאושר" value={totalApproved} cur={cur} color={C.purple} />
+            <SecTot label="נותר מברוטו" value={remaining} cur={cur} color={remaining >= 0 ? C.green : C.red} />
+          </div>
+        )}
+
+        {/* APPROVED + PAYMENTS */}
+        {tab === "approved" && (() => {
+          const approvedItems = allItems.filter(i => s.approval[i.id]?.approved);
+          const fp1I = approvedItems.filter(i => i._src === "fp1");
+          const fp2I = approvedItems.filter(i => i._src === "fp2");
+          const divG = {};
+          approvedItems.filter(i => i._src === "div").forEach(i => {
+            const div = divs.find(d => d.id === i.divId);
+            const k = div?.id || "x";
+            if (!divG[k]) divG[k] = { name: div?.name || "אחר", items: [] };
+            divG[k].items.push(i);
+          });
+          return (
+            <div>
+              <div style={{ background: C.card, borderRadius: "11px", border: `1px solid ${C.bdr}`, padding: "14px", marginBottom: "10px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: "14px" }}>✅ הקצאות מאושרות — {MONTHS_HE[selMonth]} {selYear}</h2>
+                    <p style={{ margin: "2px 0 0", fontSize: "10px", color: C.txd }}>מעקב תשלומים. הזן סכום ששולם.</p>
+                  </div>
+                  <button onClick={() => exportCSV(s, calcFp1, calcFp2, cur, mk)} style={{ background: C.greenD, border: `1px solid ${C.green}33`, color: C.green, padding: "5px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "11px", fontFamily: "inherit", fontWeight: 600 }}>📥 ייצוא</button>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "5px" }}>
+                  {[
+                    { l: "מאושר", v: totalApproved, c: C.purple, b: C.purpleD },
+                    { l: "שולם", v: totalPaid, c: C.cyan, b: C.cyanD },
+                    { l: "ממתין", v: totalApproved - totalPaid, c: C.amber, b: C.amberD },
+                    { l: "נותר מברוטו", v: remaining, c: remaining >= 0 ? C.green : C.red, b: remaining >= 0 ? C.greenD : C.redD },
+                  ].map((c, i) => (
+                    <div key={i} style={{ background: c.b, borderRadius: "7px", padding: "7px 10px", border: `1px solid ${c.c}15` }}>
+                      <div style={{ fontSize: "9px", color: C.txd }}>{c.l}</div>
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "14px", fontWeight: 700, color: c.c }}>{fmt(c.v, cur)}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {approvedItems.length === 0 && <div style={{ textAlign: "center", padding: "30px", color: C.txm, fontSize: "12px" }}>אין פריטים מאושרים. עבור לטאב "אישור".</div>}
+
+              {approvedItems.length > 0 && <div style={{ padding: "0 12px 4px", display: "grid", gridTemplateColumns: "1fr 75px 85px 75px 70px", gap: "5px", fontSize: "9px", color: C.txm, fontWeight: 700 }}><div>תיאור</div><div style={{ textAlign: "center" }}>מאושר</div><div style={{ textAlign: "center" }}>שולם</div><div style={{ textAlign: "center" }}>יתרה</div><div style={{ textAlign: "center" }}>סטטוס</div></div>}
+
+              {fp1I.length > 0 && <div style={{ background: C.card, borderRadius: "9px", border: `1px solid ${C.bdr}`, padding: "8px 12px", marginBottom: "5px" }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, color: C.red, marginBottom: "4px" }}>📋 FP#1</div>
+                {fp1I.map(i => <PaymentRow key={i.id} id={i.id} desc={i.desc} approvedAmt={s.approval[i.id].approvedAmount} section="FP#1" />)}
+              </div>}
+
+              {fp2I.length > 0 && <div style={{ background: C.card, borderRadius: "9px", border: `1px solid ${C.bdr}`, padding: "8px 12px", marginBottom: "5px" }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, color: C.amber, marginBottom: "4px" }}>📊 כלליות</div>
+                {fp2I.map(i => <PaymentRow key={i.id} id={i.id} desc={i.desc} approvedAmt={s.approval[i.id].approvedAmount} section="כללי" />)}
+              </div>}
+
+              {Object.entries(divG).map(([k, g]) => (
+                <div key={k} style={{ background: C.card, borderRadius: "9px", border: `1px solid ${C.bdr}`, padding: "8px 12px", marginBottom: "5px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, color: C.blue, marginBottom: "4px" }}>🏢 {g.name}</div>
+                  {g.items.map(i => <PaymentRow key={i.id} id={i.id} desc={i.desc} approvedAmt={s.approval[i.id].approvedAmount} section={g.name} />)}
+                </div>
+              ))}
+
+              {approvedItems.length > 0 && (
+                <div style={{ marginTop: "10px", padding: "12px 16px", background: `linear-gradient(135deg,${C.cyanD},${C.card})`, borderRadius: "11px", border: `1px solid ${C.cyan}20` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: "12px", fontWeight: 700 }}>סיכום — {MONTHS_HE[selMonth]}</div>
+                      <div style={{ fontSize: "10px", color: C.txd, marginTop: "2px" }}>
+                        {approvedItems.filter(i => (s.payment[i.id]?.status) === "paid").length} שולמו · {approvedItems.filter(i => (s.payment[i.id]?.status) === "partial").length} חלקי · {approvedItems.filter(i => !s.payment[i.id]?.status || s.payment[i.id]?.status === "unpaid").length} ממתינים
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "18px", fontWeight: 700, color: C.cyan }}>{fmt(totalPaid, cur)}<span style={{ fontSize: "10px", color: C.txd, fontWeight: 400 }}> / {fmt(totalApproved, cur)}</span></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Reset modal */}
+      {showReset && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setShowReset(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: C.card, borderRadius: "14px", padding: "22px", border: `1px solid ${C.bdr}`, maxWidth: 320, width: "90%", textAlign: "center" }}>
+            <div style={{ fontSize: "24px", marginBottom: "6px" }}>⚠️</div>
+            <h3 style={{ margin: "0 0 4px", fontSize: "13px" }}>איפוס {MONTHS_HE[selMonth]} {selYear}?</h3>
+            <p style={{ color: C.txd, fontSize: "11px", margin: "0 0 14px" }}>רק החודש הנוכחי יאופס.</p>
+            <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+              <button onClick={() => setShowReset(false)} style={{ background: C.bg, border: `1px solid ${C.bdr}`, color: C.txd, padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "11px", fontFamily: "inherit" }}>ביטול</button>
+              <button onClick={resetMonth} style={{ background: C.red, border: "none", color: "#fff", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "11px", fontFamily: "inherit", fontWeight: 600 }}>אפס</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
