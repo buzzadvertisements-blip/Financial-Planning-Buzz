@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BUZZ תכנון פיננסי</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #090c10; }
@@ -62,8 +63,30 @@ function freshMonth() {
   };
 }
 
-async function loadAll() { try { const r = localStorage.getItem("fp-v4"); return r ? JSON.parse(r) : null; } catch { return null; } }
-async function saveAll(d) { try { localStorage.setItem("fp-v4", JSON.stringify(d)); } catch {} }
+async function loadAll() {
+  try {
+    const res = await fetch("https://ughjtihrhysrwtnynydr.supabase.co/rest/v1/fp_data?id=eq.main&select=data", {
+      headers: { "apikey": "sb_publishable_STybZgL44GRkqyYwmNJpgQ_fy1205Hf", "Authorization": "Bearer sb_publishable_STybZgL44GRkqyYwmNJpgQ_fy1205Hf" }
+    });
+    const rows = await res.json();
+    if (rows && rows.length > 0 && rows[0].data) return rows[0].data;
+    return null;
+  } catch(e) { console.error("Load error:", e); return null; }
+}
+async function saveAll(d) {
+  try {
+    await fetch("https://ughjtihrhysrwtnynydr.supabase.co/rest/v1/fp_data?id=eq.main", {
+      method: "PATCH",
+      headers: {
+        "apikey": "sb_publishable_STybZgL44GRkqyYwmNJpgQ_fy1205Hf",
+        "Authorization": "Bearer sb_publishable_STybZgL44GRkqyYwmNJpgQ_fy1205Hf",
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify({ data: d, updated_at: new Date().toISOString() })
+    });
+  } catch(e) { console.error("Save error:", e); }
+}
 
 const C = {
   bg: "#090c10", card: "#11151d", card2: "#171c27",
