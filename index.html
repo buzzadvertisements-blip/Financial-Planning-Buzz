@@ -12,90 +12,96 @@ body{background:#090c10;font-family:'Segoe UI','Noto Sans Hebrew',system-ui,sans
 input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 input[type=number]{-moz-appearance:textfield}
 ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#11151d}::-webkit-scrollbar-thumb{background:#283042;border-radius:3px}
-#loading{display:flex;align-items:center;justify-content:center;min-height:100vh;color:#7b8a9e;font-size:16px}
 </style>
 </head>
 <body>
-<div id="root"><div id="loading">טוען...</div></div>
+<div id="root"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;color:#7b8a9e;font-size:16px">טוען...</div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script>
 "use strict";
-const h = React.createElement;
-const {useState, useCallback, useEffect, useRef} = React;
+const h=React.createElement;
+const{useState,useCallback,useEffect,useRef,useMemo}=React;
 
-const SUPA_URL = "https://ughjtihrhysrwtnynydr.supabase.co";
-const SUPA_KEY = "sb_publishable_STybZgL44GRkqyYwmNJpgQ_fy1205Hf";
-const SUPA_HEADERS = {"apikey":SUPA_KEY,"Authorization":"Bearer "+SUPA_KEY};
+const SUPA_URL="https://ughjtihrhysrwtnynydr.supabase.co";
+const SUPA_KEY="sb_publishable_STybZgL44GRkqyYwmNJpgQ_fy1205Hf";
+const SH={"apikey":SUPA_KEY,"Authorization":"Bearer "+SUPA_KEY};
 
-async function loadAll(){
-  try{
-    const res=await fetch(SUPA_URL+"/rest/v1/fp_data?id=eq.main&select=data",{headers:SUPA_HEADERS});
-    const rows=await res.json();
-    if(rows&&rows.length>0&&rows[0].data)return rows[0].data;
-    return null;
-  }catch(e){console.error("Load:",e);return null}
+async function dbLoad(){
+  try{const r=await fetch(SUPA_URL+"/rest/v1/fp_data?id=eq.main&select=data",{headers:SH});const rows=await r.json();return(rows&&rows[0]?.data)||null}catch(e){console.error("Load:",e);return null}
 }
-async function saveAll(d){
-  try{
-    await fetch(SUPA_URL+"/rest/v1/fp_data?id=eq.main",{
-      method:"PATCH",
-      headers:{...SUPA_HEADERS,"Content-Type":"application/json","Prefer":"return=minimal"},
-      body:JSON.stringify({data:d,updated_at:new Date().toISOString()})
-    });
-  }catch(e){console.error("Save:",e)}
+async function dbSave(d){
+  try{await fetch(SUPA_URL+"/rest/v1/fp_data?id=eq.main",{method:"PATCH",headers:{...SH,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({data:d,updated_at:new Date().toISOString()})})}catch(e){console.error("Save:",e)}
 }
 
 function gid(){return"i"+Math.random().toString(36).slice(2,9)}
-function fmt(n,cur){
-  const s=cur==="$"?"$":"₪";
-  const abs=Math.abs(Math.round(n));
-  return n<0?s+abs.toLocaleString("en-US")+"-":s+abs.toLocaleString("en-US");
-}
-
+function fmt(n,c){const s=c==="$"?"$":"₪";const a=Math.abs(Math.round(n));return n<0?s+a.toLocaleString("en-US")+"-":s+a.toLocaleString("en-US")}
 const MHE=["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
-function mk(y,m){return y+"-"+String(m+1).padStart(2,"0")}
-
-const DIVS=[
-  {id:"div1",name:"דיביזיה 1 — ייסוד ותקשורות"},
-  {id:"div2",name:"דיביזיה 2 — הפצה"},
-  {id:"div3",name:"דיביזיה 3 — אוצר"},
-  {id:"div4",name:"דיביזיה 4 — ייצור"},
-  {id:"div5",name:"דיביזיה 5 — הסמכות"},
-  {id:"div6",name:"דיביזיה 6 — תפוצה (קידום)"},
-  {id:"div7",name:"דיביזיה 7 — מנהלים"}
-];
-
+function mkk(y,m){return y+"-"+String(m+1).padStart(2,"0")}
+const DIVS=[{id:"div1",name:"דיביזיה 1 — ייסוד ותקשורות"},{id:"div2",name:"דיביזיה 2 — הפצה"},{id:"div3",name:"דיביזיה 3 — אוצר"},{id:"div4",name:"דיביזיה 4 — ייצור"},{id:"div5",name:"דיביזיה 5 — הסמכות"},{id:"div6",name:"דיביזיה 6 — תפוצה (קידום)"},{id:"div7",name:"דיביזיה 7 — מנהלים"}];
 function freshMonth(){return{grossIncome:0,fp1:[{id:gid(),desc:'מע"מ',val:17,isPct:true},{id:gid(),desc:"ביטוח לאומי",val:10,isPct:true},{id:gid(),desc:"מס הכנסה",val:10,isPct:true}],fp2:[],divisions:DIVS.map(d=>({...d})),divItems:[],approval:{},payment:{}}}
-
 const C={bg:"#090c10",card:"#11151d",card2:"#171c27",bdr:"#1e2535",bdr2:"#283042",tx:"#e2e6ed",txd:"#7b8a9e",txm:"#4a5568",blue:"#3b82f6",blueD:"#132850",green:"#10b981",greenD:"#0a2b20",red:"#ef4444",redD:"#2d0e0e",amber:"#f59e0b",amberD:"#2a1d06",purple:"#a78bfa",purpleD:"#1c1340",cyan:"#06b6d4",cyanD:"#0a2530"};
 
-function exportCSV(s,calcFp1,calcFp2,cur,mkey){
-  const rows=[["מקור","תיאור","מבוקש","מאושר","שולם","סטטוס"]];
-  rows.push(["חודש",mkey,"","","",""]);
-  rows.push(["הכנסה ברוטו","",s.grossIncome,"","",""]);
-  rows.push([]);
-  function addI(sec,items,fn){items.forEach(i=>{const amt=fn(i);const ap=s.approval[i.id];const py=s.payment[i.id];const aA=ap?.approved?ap.approvedAmount:0;const pA=py?.paidAmount||0;const st=!ap?.approved?"לא מאושר":py?.status==="paid"?"שולם במלואו":py?.status==="partial"?"שולם חלקית":"ממתין";rows.push([sec,i.desc||"",Math.round(amt),aA,pA,st])})}
-  rows.push(["=== FP#1 ==="]);addI("FP#1",s.fp1,calcFp1);
-  rows.push([]);rows.push(["=== הקצאות כלליות ==="]);addI("כללי",s.fp2,calcFp2);
-  (s.divisions||[]).forEach(div=>{const items=(s.divItems||[]).filter(x=>x.divId===div.id);if(items.length){rows.push([]);rows.push(["=== "+div.name+" ==="]);addI(div.name,items,i=>i.amount||0)}});
-  const bom="\uFEFF";const csv=rows.map(r=>r.map(c=>'"'+String(c??"").replace(/"/g,'""')+'"').join(",")).join("\n");
-  const blob=new Blob([bom+csv],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");a.href=url;a.download="FP_BUZZ_"+mkey+".csv";a.click();URL.revokeObjectURL(url);
+function exportCSV(s,calcFp1,calcFp2,cur,mkey){const rows=[["מקור","תיאור","מבוקש","מאושר","שולם","סטטוס"]];rows.push(["חודש",mkey,"","","",""]);rows.push(["הכנסה ברוטו","",s.grossIncome,"","",""]);rows.push([]);function addI(sec,items,fn){items.forEach(i=>{const amt=fn(i);const ap=s.approval[i.id];const py=s.payment[i.id];const aA=ap?.approved?ap.approvedAmount:0;const pA=py?.paidAmount||0;const st=!ap?.approved?"לא מאושר":py?.status==="paid"?"שולם במלואו":py?.status==="partial"?"שולם חלקית":"ממתין";rows.push([sec,i.desc||"",Math.round(amt),aA,pA,st])})}rows.push(["=== FP#1 ==="]);addI("FP#1",s.fp1,calcFp1);rows.push([]);rows.push(["=== הקצאות כלליות ==="]);addI("כללי",s.fp2,calcFp2);(s.divisions||[]).forEach(div=>{const items=(s.divItems||[]).filter(x=>x.divId===div.id);if(items.length){rows.push([]);rows.push(["=== "+div.name+" ==="]);addI(div.name,items,i=>i.amount||0)}});const bom="\uFEFF";const csv=rows.map(r=>r.map(c=>'"'+String(c??"").replace(/"/g,'""')+'"').join(",")).join("\n");const blob=new Blob([bom+csv],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="FP_BUZZ_"+mkey+".csv";a.click();URL.revokeObjectURL(url)}
+
+// ===== Debounced Number Input - keeps local state while typing =====
+function DNI(props){
+  const{value,onChange,color,w}=props;
+  const[local,setLocal]=useState(String(value||""));
+  const timer=useRef(null);
+  const prev=useRef(value);
+  // Sync from parent only if value changed externally
+  useEffect(()=>{if(value!==prev.current){setLocal(String(value||""));prev.current=value}},[value]);
+  const handleChange=e=>{
+    const v=e.target.value;
+    setLocal(v);
+    if(timer.current)clearTimeout(timer.current);
+    timer.current=setTimeout(()=>{const num=parseFloat(v)||0;prev.current=num;onChange(num)},600);
+  };
+  return h("input",{type:"number",value:local,onChange:handleChange,style:{background:C.bg,border:"1px solid "+C.bdr,color:color||"#60a5fa",borderRadius:"5px",padding:"5px 6px",fontSize:"12px",fontFamily:"'JetBrains Mono',monospace",textAlign:"center",outline:"none",width:w||"80px"},onFocus:e=>e.currentTarget.style.borderColor=C.blue,onBlur:e=>{e.currentTarget.style.borderColor=C.bdr;const num=parseFloat(local)||0;prev.current=num;onChange(num);if(timer.current)clearTimeout(timer.current)}});
 }
 
-// ===== Tiny UI helpers as functions returning React elements =====
-function Badge(props){return h("span",{style:{background:props.bg,color:props.color,padding:"2px 9px",borderRadius:"12px",fontSize:"11px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",whiteSpace:"nowrap"}},props.children)}
-function AddBtn(props){return h("button",{onClick:props.onClick,style:{marginTop:"7px",width:"100%",background:"transparent",border:"1px dashed "+C.bdr2,color:C.blue,padding:"8px",borderRadius:"7px",cursor:"pointer",fontSize:"11px",fontFamily:"inherit",fontWeight:600},onMouseOver:e=>e.currentTarget.style.borderColor=C.blue,onMouseOut:e=>e.currentTarget.style.borderColor=C.bdr2},props.label||"+ הוסף שורה")}
-function RemBtn(props){return h("button",{onClick:props.onClick,style:{background:"transparent",border:"none",color:C.txm,cursor:"pointer",fontSize:"13px",padding:"3px 5px",borderRadius:"4px",lineHeight:1},onMouseOver:e=>e.currentTarget.style.color=C.red,onMouseOut:e=>e.currentTarget.style.color=C.txm},"✕")}
-function NI(props){return h("input",{type:"number",value:props.value,onChange:e=>props.onChange(parseFloat(e.target.value)||0),style:{background:C.bg,border:"1px solid "+C.bdr,color:props.color||"#60a5fa",borderRadius:"5px",padding:"5px 6px",fontSize:"12px",fontFamily:"'JetBrains Mono',monospace",textAlign:"center",outline:"none",width:props.w||"80px"},onFocus:e=>e.currentTarget.style.borderColor=C.blue,onBlur:e=>e.currentTarget.style.borderColor=C.bdr})}
-function TI(props){return h("input",{value:props.value,onChange:e=>props.onChange(e.target.value),placeholder:props.placeholder||"",style:{background:"transparent",border:"none",color:C.tx,fontSize:"12px",fontFamily:"inherit",outline:"none",borderBottom:"1px solid "+C.bdr,paddingBottom:"2px",width:"100%"}})}
-function SecTot(props){const bgc=props.color===C.green?C.greenD:props.color===C.red?C.redD:props.color===C.purple?C.purpleD:props.color===C.amber?C.amberD:C.blueD;return h("div",{style:{padding:"10px 14px",borderRadius:"9px",background:bgc,border:"1px solid "+props.color+"20",display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"10px"}},h("span",{style:{fontWeight:600,fontSize:"12px"}},props.label),h("span",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"15px",fontWeight:700,color:props.color}},fmt(props.value,props.cur)))}
-function Chev(props){return h("span",{style:{transform:props.open?"rotate(90deg)":"rotate(0)",transition:"transform 0.15s",display:"inline-block",fontSize:"10px",color:C.txm}},"▶")}
-function SummaryCard(props){return h("div",{style:{background:props.bg,borderRadius:"8px",padding:"7px 9px",border:"1px solid "+props.color+"15"}},h("div",{style:{fontSize:"9px",color:C.txd,whiteSpace:"nowrap"}},props.label),h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:props.big?"16px":"13px",fontWeight:700,color:props.color}},fmt(props.value,props.cur)))}
+// ===== Debounced Text Input =====
+function DTI(props){
+  const{value,onChange,placeholder}=props;
+  const[local,setLocal]=useState(value||"");
+  const timer=useRef(null);
+  const prev=useRef(value);
+  useEffect(()=>{if(value!==prev.current){setLocal(value||"");prev.current=value}},[value]);
+  const handleChange=e=>{
+    const v=e.target.value;setLocal(v);
+    if(timer.current)clearTimeout(timer.current);
+    timer.current=setTimeout(()=>{prev.current=v;onChange(v)},600);
+  };
+  return h("input",{value:local,onChange:handleChange,placeholder:placeholder||"",style:{background:"transparent",border:"none",color:C.tx,fontSize:"12px",fontFamily:"inherit",outline:"none",borderBottom:"1px solid "+C.bdr,paddingBottom:"2px",width:"100%"},onBlur:()=>{prev.current=local;onChange(local);if(timer.current)clearTimeout(timer.current)}});
+}
 
-// ===== MAIN APP =====
+// ===== Debounced Gross Income Input =====
+function GrossInput(props){
+  const{value,onChange,cur}=props;
+  const[local,setLocal]=useState(String(value||""));
+  const timer=useRef(null);
+  const prev=useRef(value);
+  useEffect(()=>{if(value!==prev.current){setLocal(String(value||""));prev.current=value}},[value]);
+  const handleChange=e=>{
+    const v=e.target.value;setLocal(v);
+    if(timer.current)clearTimeout(timer.current);
+    timer.current=setTimeout(()=>{const num=parseFloat(v)||0;prev.current=num;onChange(num)},600);
+  };
+  return h("div",{style:{display:"flex",alignItems:"center",gap:"5px"}},
+    h("span",{style:{fontSize:"15px",color:C.blue,fontWeight:700}},cur),
+    h("input",{type:"number",value:local,onChange:handleChange,onBlur:()=>{const num=parseFloat(local)||0;prev.current=num;onChange(num);if(timer.current)clearTimeout(timer.current)},style:{background:"transparent",border:"none",color:C.tx,fontSize:"22px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",outline:"none",width:"100%"}})
+  );
+}
+
+function Badge(p){return h("span",{style:{background:p.bg,color:p.color,padding:"2px 9px",borderRadius:"12px",fontSize:"11px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",whiteSpace:"nowrap"}},p.children)}
+function AddBtn(p){return h("button",{onClick:p.onClick,style:{marginTop:"7px",width:"100%",background:"transparent",border:"1px dashed "+C.bdr2,color:C.blue,padding:"8px",borderRadius:"7px",cursor:"pointer",fontSize:"11px",fontFamily:"inherit",fontWeight:600},onMouseOver:e=>e.currentTarget.style.borderColor=C.blue,onMouseOut:e=>e.currentTarget.style.borderColor=C.bdr2},p.label||"+ הוסף שורה")}
+function RemBtn(p){return h("button",{onClick:p.onClick,style:{background:"transparent",border:"none",color:C.txm,cursor:"pointer",fontSize:"13px",padding:"3px 5px",borderRadius:"4px",lineHeight:1},onMouseOver:e=>e.currentTarget.style.color=C.red,onMouseOut:e=>e.currentTarget.style.color=C.txm},"✕")}
+function SecTot(p){const bgc=p.color===C.green?C.greenD:p.color===C.red?C.redD:p.color===C.purple?C.purpleD:p.color===C.amber?C.amberD:C.blueD;return h("div",{style:{padding:"10px 14px",borderRadius:"9px",background:bgc,border:"1px solid "+p.color+"20",display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"10px"}},h("span",{style:{fontWeight:600,fontSize:"12px"}},p.label),h("span",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"15px",fontWeight:700,color:p.color}},fmt(p.value,p.cur)))}
+function Chev(p){return h("span",{style:{transform:p.open?"rotate(90deg)":"rotate(0)",transition:"transform 0.15s",display:"inline-block",fontSize:"10px",color:C.txm}},"▶")}
+function SC(p){return h("div",{style:{background:p.bg,borderRadius:"8px",padding:"7px 9px",border:"1px solid "+p.color+"15"}},h("div",{style:{fontSize:"9px",color:C.txd,whiteSpace:"nowrap"}},p.label),h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:p.big?"16px":"13px",fontWeight:700,color:p.color}},fmt(p.value,p.cur)))}
+
 function App(){
   const[data,setData]=useState(null);
   const now=new Date();
@@ -107,46 +113,30 @@ function App(){
   const[editDivName,setEditDivName]=useState(null);
   const[showReset,setShowReset]=useState(false);
   const[showCopyFrom,setShowCopyFrom]=useState(false);
-  const[saving,setSaving]=useState(false);
+  const[saveSt,setSaveSt]=useState("");
   const loaded=useRef(false);
-  const saveTimer=useRef(null);
+  const saveT=useRef(null);
+  const dataRef=useRef(null);
 
-  const mkey=mk(selYear,selMonth);
+  const mkey=mkk(selYear,selMonth);
 
-  useEffect(()=>{
-    loadAll().then(d=>{
-      if(!d)d={currency:"₪",months:{}};
-      if(!d.months)d.months={};
-      setData(d);
-      DIVS.forEach(dv=>setExpDivs(p=>({...p,[dv.id]:true})));
-      loaded.current=true;
-    });
-  },[]);
+  useEffect(()=>{dbLoad().then(d=>{if(!d)d={currency:"₪",months:{}};if(!d.months)d.months={};setData(d);dataRef.current=d;DIVS.forEach(dv=>setExpDivs(p=>({...p,[dv.id]:true})));loaded.current=true})},[]);
 
-  // Debounced save
+  // Save with debounce - use ref to avoid stale closure
+  useEffect(()=>{dataRef.current=data},[data]);
   useEffect(()=>{
     if(!loaded.current||!data)return;
-    if(saveTimer.current)clearTimeout(saveTimer.current);
-    saveTimer.current=setTimeout(()=>{setSaving(true);saveAll(data).then(()=>setSaving(false))},800);
-    return()=>{if(saveTimer.current)clearTimeout(saveTimer.current)};
+    if(saveT.current)clearTimeout(saveT.current);
+    saveT.current=setTimeout(()=>{setSaveSt("שומר...");dbSave(dataRef.current).then(()=>{setSaveSt("נשמר ✓");setTimeout(()=>setSaveSt(""),2000)})},2000);
+    return()=>{if(saveT.current)clearTimeout(saveT.current)};
   },[data]);
 
-  const getMonth=useCallback(()=>{
-    if(!data)return freshMonth();
-    return data.months[mkey]||freshMonth();
-  },[data,mkey]);
-
-  const setMonth=useCallback(fn=>{
-    setData(prev=>{
-      const m=prev.months[mkey]||freshMonth();
-      const updated=fn(m);
-      return{...prev,months:{...prev.months,[mkey]:{...updated}}};
-    });
-  },[mkey]);
+  const gM=useCallback(()=>{if(!data)return freshMonth();return data.months[mkey]||freshMonth()},[data,mkey]);
+  const sM=useCallback(fn=>{setData(prev=>{const m=prev.months[mkey]||freshMonth();return{...prev,months:{...prev.months,[mkey]:{...fn(m)}}}})},[mkey]);
 
   if(!data)return h("div",{style:{background:C.bg,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:C.txd,fontSize:"16px"}},"טוען נתונים...");
 
-  const s=getMonth();
+  const s=gM();
   const cur=data.currency||"₪";
   const calcFp1=i=>i.isPct?(s.grossIncome*i.val/100):i.val;
   const fp1Plan=s.fp1.reduce((a,i)=>a+calcFp1(i),0);
@@ -162,117 +152,84 @@ function App(){
   const divs=s.divisions||DIVS;
 
   const toggleCur=()=>setData(p=>({...p,currency:p.currency==="₪"?"$":"₪"}));
-  const setGross=v=>setMonth(m=>({...m,grossIncome:v}));
-  const addFp1=()=>setMonth(m=>({...m,fp1:[...m.fp1,{id:gid(),desc:"",val:0,isPct:false}]}));
-  const updFp1=(id,f,v)=>setMonth(m=>({...m,fp1:m.fp1.map(i=>i.id===id?{...i,[f]:v}:i)}));
-  const rmFp1=id=>setMonth(m=>{const ap={...m.approval};delete ap[id];const py={...m.payment};delete py[id];return{...m,fp1:m.fp1.filter(i=>i.id!==id),approval:ap,payment:py}});
-  const addFp2=()=>setMonth(m=>({...m,fp2:[...m.fp2,{id:gid(),desc:"",val:0,isPct:false}]}));
-  const updFp2=(id,f,v)=>setMonth(m=>({...m,fp2:m.fp2.map(i=>i.id===id?{...i,[f]:v}:i)}));
-  const rmFp2=id=>setMonth(m=>{const ap={...m.approval};delete ap[id];const py={...m.payment};delete py[id];return{...m,fp2:m.fp2.filter(i=>i.id!==id),approval:ap,payment:py}});
-  const updDivName=(id,n)=>setMonth(m=>({...m,divisions:(m.divisions||DIVS).map(d=>d.id===id?{...d,name:n}:d)}));
-  const addDivItem=dId=>setMonth(m=>({...m,divItems:[...(m.divItems||[]),{id:gid(),divId:dId,desc:"",amount:0}]}));
-  const updDivItem=(id,f,v)=>setMonth(m=>({...m,divItems:(m.divItems||[]).map(i=>i.id===id?{...i,[f]:v}:i)}));
-  const rmDivItem=id=>setMonth(m=>{const ap={...m.approval};delete ap[id];const py={...m.payment};delete py[id];return{...m,divItems:(m.divItems||[]).filter(i=>i.id!==id),approval:ap,payment:py}});
-  const setApproval=(id,approved,amt)=>setMonth(m=>({...m,approval:{...m.approval,[id]:{approved,approvedAmount:approved?amt:0}}}));
-  const setPayment=(id,paidAmount)=>{const apAmt=s.approval[id]?.approvedAmount||0;const status=paidAmount>=apAmt&&apAmt>0?"paid":paidAmount>0?"partial":"unpaid";setMonth(m=>({...m,payment:{...m.payment,[id]:{status,paidAmount}}}))};
-  const resetMonth=()=>{setMonth(()=>freshMonth());setShowReset(false)};
-
+  const setGross=v=>sM(m=>({...m,grossIncome:v}));
+  const addFp1=()=>sM(m=>({...m,fp1:[...m.fp1,{id:gid(),desc:"",val:0,isPct:false}]}));
+  const updFp1=(id,f,v)=>sM(m=>({...m,fp1:m.fp1.map(i=>i.id===id?{...i,[f]:v}:i)}));
+  const rmFp1=id=>sM(m=>{const ap={...m.approval};delete ap[id];const py={...m.payment};delete py[id];return{...m,fp1:m.fp1.filter(i=>i.id!==id),approval:ap,payment:py}});
+  const addFp2=()=>sM(m=>({...m,fp2:[...m.fp2,{id:gid(),desc:"",val:0,isPct:false}]}));
+  const updFp2=(id,f,v)=>sM(m=>({...m,fp2:m.fp2.map(i=>i.id===id?{...i,[f]:v}:i)}));
+  const rmFp2=id=>sM(m=>{const ap={...m.approval};delete ap[id];const py={...m.payment};delete py[id];return{...m,fp2:m.fp2.filter(i=>i.id!==id),approval:ap,payment:py}});
+  const updDivName=(id,n)=>sM(m=>({...m,divisions:(m.divisions||DIVS).map(d=>d.id===id?{...d,name:n}:d)}));
+  const addDivItem=dId=>sM(m=>({...m,divItems:[...(m.divItems||[]),{id:gid(),divId:dId,desc:"",amount:0}]}));
+  const updDivItem=(id,f,v)=>sM(m=>({...m,divItems:(m.divItems||[]).map(i=>i.id===id?{...i,[f]:v}:i)}));
+  const rmDivItem=id=>sM(m=>{const ap={...m.approval};delete ap[id];const py={...m.payment};delete py[id];return{...m,divItems:(m.divItems||[]).filter(i=>i.id!==id),approval:ap,payment:py}});
+  const setApproval=(id,approved,amt)=>sM(m=>({...m,approval:{...m.approval,[id]:{approved,approvedAmount:approved?amt:0}}}));
+  const setPayment=(id,paidAmount)=>{const apAmt=s.approval[id]?.approvedAmount||0;const status=paidAmount>=apAmt&&apAmt>0?"paid":paidAmount>0?"partial":"unpaid";sM(m=>({...m,payment:{...m.payment,[id]:{status,paidAmount}}}))};
+  const resetMonth=()=>{sM(()=>freshMonth());setShowReset(false)};
   const existingMonths=Object.keys(data.months).filter(k=>k!==mkey&&data.months[k].grossIncome>0).sort().reverse();
-  const copyFromMonth=srcKey=>{const src=data.months[srcKey];if(!src)return;const mapI=item=>{const nid=gid();return{...item,id:nid}};setMonth(()=>({grossIncome:src.grossIncome,fp1:src.fp1.map(mapI),fp2:src.fp2.map(mapI),divisions:(src.divisions||DIVS).map(d=>({...d})),divItems:(src.divItems||[]).map(mapI),approval:{},payment:{}}));setShowCopyFrom(false)};
+  const copyFromMonth=srcKey=>{const src=data.months[srcKey];if(!src)return;const mapI=item=>({...item,id:gid()});sM(()=>({grossIncome:src.grossIncome,fp1:src.fp1.map(mapI),fp2:src.fp2.map(mapI),divisions:(src.divisions||DIVS).map(d=>({...d})),divItems:(src.divItems||[]).map(mapI),approval:{},payment:{}}));setShowCopyFrom(false)};
   const prevMonth=()=>{if(selMonth===0){setSelMonth(11);setSelYear(y=>y-1)}else setSelMonth(m=>m-1)};
   const nextMonth=()=>{if(selMonth===11){setSelMonth(0);setSelYear(y=>y+1)}else setSelMonth(m=>m+1)};
 
-  // ===== Approval Row =====
-  function ApprovalRow(props){
-    const{id,desc,requestedAmt,extra}=props;
-    const ap=s.approval[id]||{};const isA=!!ap.approved;const aAmt=ap.approvedAmount||0;
+  function ApprovalRow(p){
+    const{id,desc,requestedAmt,extra}=p;const ap=s.approval[id]||{};const isA=!!ap.approved;const aAmt=ap.approvedAmount||0;
     return h("div",{style:{display:"grid",gridTemplateColumns:"1fr 80px 95px 75px",gap:"5px",alignItems:"center",padding:"7px 0",borderBottom:"1px solid "+C.bdr+"08"}},
       h("div",null,h("div",{style:{fontSize:"12px",color:isA?C.tx:C.txd}},desc||"(ללא תיאור)"),extra&&h("div",{style:{fontSize:"10px",color:C.txm}},extra)),
       h("div",{style:{textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",color:C.txd}},fmt(Math.round(requestedAmt),cur)),
-      h("div",null,h("input",{type:"number",value:isA?aAmt:"",placeholder:"סכום",onChange:e=>{const v=parseFloat(e.target.value)||0;setApproval(id,v>0,v)},style:{background:C.bg,border:"1px solid "+(isA?C.green:C.bdr),color:isA?C.green:C.txd,borderRadius:"5px",padding:"4px 5px",fontSize:"11px",fontFamily:"'JetBrains Mono',monospace",textAlign:"center",outline:"none",width:"85px"}})),
+      h(DNI,{value:isA?aAmt:0,onChange:v=>setApproval(id,v>0,v),color:isA?C.green:C.txd,w:"85px"}),
       h("div",{style:{display:"flex",justifyContent:"center"}},h("button",{onClick:()=>{if(isA)setApproval(id,false,0);else setApproval(id,true,Math.round(requestedAmt))},style:{background:isA?C.greenD:C.bdr+"55",border:"1px solid "+(isA?C.green:C.bdr)+"44",color:isA?C.green:C.txm,borderRadius:"5px",padding:"3px 8px",cursor:"pointer",fontSize:"10px",fontWeight:700,fontFamily:"inherit"}},isA?"✓":"אשר"))
     );
   }
 
-  // ===== Payment Row =====
-  function PaymentRow(props){
-    const{id,desc,approvedAmt,section}=props;
-    const py=s.payment[id]||{};const pAmt=py.paidAmount||0;const status=py.status||"unpaid";
+  function PaymentRow(p){
+    const{id,desc,approvedAmt,section}=p;const py=s.payment[id]||{};const pAmt=py.paidAmount||0;const status=py.status||"unpaid";
     const stLabel=status==="paid"?"שולם":status==="partial"?"חלקי":"ממתין";
     const stColor=status==="paid"?C.green:status==="partial"?C.amber:C.txm;
     return h("div",{style:{display:"grid",gridTemplateColumns:"1fr 75px 85px 75px 70px",gap:"5px",alignItems:"center",padding:"6px 0",borderBottom:"1px solid "+C.bdr+"08"}},
       h("div",null,h("div",{style:{fontSize:"11px",color:C.tx}},desc),h("div",{style:{fontSize:"9px",color:C.txm}},section)),
       h("div",{style:{textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",color:C.tx}},fmt(approvedAmt,cur)),
-      h("div",null,h("input",{type:"number",value:pAmt||"",placeholder:"0",onChange:e=>setPayment(id,parseFloat(e.target.value)||0),style:{background:C.bg,border:"1px solid "+C.bdr,color:pAmt>0?C.cyan:C.txd,borderRadius:"5px",padding:"4px 5px",fontSize:"11px",fontFamily:"'JetBrains Mono',monospace",textAlign:"center",outline:"none",width:"75px"}})),
+      h(DNI,{value:pAmt,onChange:v=>setPayment(id,v),color:pAmt>0?C.cyan:C.txd,w:"75px"}),
       h("div",{style:{textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",color:C.txd}},fmt(approvedAmt-pAmt,cur)),
       h("div",{style:{display:"flex",justifyContent:"center"}},h("span",{style:{fontSize:"10px",fontWeight:600,color:stColor,background:stColor+"15",padding:"2px 8px",borderRadius:"8px",whiteSpace:"nowrap"}},stLabel))
     );
   }
 
-  // ===== FP Row =====
-  function FpRow(props){
-    const{item,calcAmt,updFn,rmFn,cur:c}=props;const amt=calcAmt(item);
+  function FpRow(p){
+    const{item,calcAmt,updFn,rmFn}=p;const amt=calcAmt(item);
     return h("div",{style:{display:"grid",gridTemplateColumns:"1fr 60px 80px 80px 26px",gap:"5px",alignItems:"center",padding:"6px 8px",background:C.bg,borderRadius:"6px",border:"1px solid "+C.bdr}},
-      h(TI,{value:item.desc,onChange:v=>updFn(item.id,"desc",v),placeholder:"תיאור..."}),
-      h("div",{style:{display:"flex",justifyContent:"center"}},h("button",{onClick:()=>updFn(item.id,"isPct",!item.isPct),style:{background:item.isPct?C.blueD:C.greenD,border:"1px solid "+(item.isPct?C.blue:C.green)+"44",color:item.isPct?C.blue:C.green,borderRadius:"4px",padding:"1px 6px",cursor:"pointer",fontSize:"10px",fontWeight:700,fontFamily:"inherit"}},item.isPct?"%":c)),
-      h(NI,{value:item.val,onChange:v=>updFn(item.id,"val",v),w:"70px"}),
-      h("div",{style:{textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",color:C.txd}},fmt(Math.round(amt),c)),
+      h(DTI,{value:item.desc,onChange:v=>updFn(item.id,"desc",v),placeholder:"תיאור..."}),
+      h("div",{style:{display:"flex",justifyContent:"center"}},h("button",{onClick:()=>updFn(item.id,"isPct",!item.isPct),style:{background:item.isPct?C.blueD:C.greenD,border:"1px solid "+(item.isPct?C.blue:C.green)+"44",color:item.isPct?C.blue:C.green,borderRadius:"4px",padding:"1px 6px",cursor:"pointer",fontSize:"10px",fontWeight:700,fontFamily:"inherit"}},item.isPct?"%":cur)),
+      h(DNI,{value:item.val,onChange:v=>updFn(item.id,"val",v),w:"70px"}),
+      h("div",{style:{textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",color:C.txd}},fmt(Math.round(amt),cur)),
       h(RemBtn,{onClick:()=>rmFn(item.id)})
     );
   }
 
-  // ===== Collapsible Section =====
-  function CollapseSection(props){
-    const{title,badge,badgeColor,badgeBg,isOpen,onToggle,headerBg,children}=props;
-    return h("div",{style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,overflow:"hidden",marginBottom:"6px"}},
-      h("div",{onClick:onToggle,style:{padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:isOpen?"1px solid "+C.bdr:"none",background:headerBg||"transparent"}},
-        h("div",{style:{display:"flex",alignItems:"center",gap:"7px"}},h(Chev,{open:isOpen}),h("span",{style:{fontWeight:700,fontSize:"12px"}},title)),
-        h("div",{style:{display:"flex",gap:"10px",alignItems:"center"}},badge&&h(Badge,{color:badgeColor,bg:badgeBg},badge))
-      ),
-      isOpen&&h("div",{style:{padding:"8px 14px"}},children)
-    );
-  }
-
   const tabs=[{key:"fp1",label:"FP#1 חובות",icon:"📋"},{key:"fp2",label:"FP#2 תכנון",icon:"📊"},{key:"approve",label:"אישור",icon:"🔍"},{key:"approved",label:"מאושרות",icon:"✅"}];
-  const colHeaders4=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 80px 95px 75px",gap:"5px",padding:"0 0 4px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"מבוקש"),h("div",{style:{textAlign:"center"}},"מאושר"),h("div",{style:{textAlign:"center"}},"אישור"));
+  const colH4=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 80px 95px 75px",gap:"5px",padding:"0 0 4px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"מבוקש"),h("div",{style:{textAlign:"center"}},"מאושר"),h("div",{style:{textAlign:"center"}},"אישור"));
 
-  // ===== RENDER =====
   return h("div",null,
     // HEADER
     h("div",{style:{background:"linear-gradient(180deg,"+C.card2+","+C.bg+")",borderBottom:"1px solid "+C.bdr,padding:"14px 14px 0",position:"sticky",top:0,zIndex:100}},
       h("div",{style:{maxWidth:960,margin:"0 auto"}},
-        // Title bar
         h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}},
-          h("div",{style:{display:"flex",alignItems:"center",gap:"8px"}},
-            h("h1",{style:{margin:0,fontSize:"17px",fontWeight:700}},h("span",{style:{color:C.blue}},"BUZZ")," תכנון פיננסי"),
-            saving&&h("span",{style:{fontSize:"9px",color:C.txm}},"שומר...")
-          ),
+          h("div",{style:{display:"flex",alignItems:"center",gap:"8px"}},h("h1",{style:{margin:0,fontSize:"17px",fontWeight:700}},h("span",{style:{color:C.blue}},"BUZZ")," תכנון פיננסי"),saveSt&&h("span",{style:{fontSize:"9px",color:saveSt.includes("✓")?C.green:C.txm}},saveSt)),
           h("div",{style:{display:"flex",gap:"5px",alignItems:"center"}},
-            h("div",{style:{display:"flex",borderRadius:"5px",overflow:"hidden",border:"1px solid "+C.bdr}},
-              ["₪","$"].map(c=>h("button",{key:c,onClick:toggleCur,style:{background:cur===c?C.blue:"transparent",border:"none",color:cur===c?"#fff":C.txd,padding:"2px 9px",cursor:"pointer",fontSize:"11px",fontWeight:600,fontFamily:"inherit"}},c))
-            ),
+            h("div",{style:{display:"flex",borderRadius:"5px",overflow:"hidden",border:"1px solid "+C.bdr}},["₪","$"].map(c=>h("button",{key:c,onClick:toggleCur,style:{background:cur===c?C.blue:"transparent",border:"none",color:cur===c?"#fff":C.txd,padding:"2px 9px",cursor:"pointer",fontSize:"11px",fontWeight:600,fontFamily:"inherit"}},c))),
             h("button",{onClick:()=>exportCSV(s,calcFp1,calcFp2,cur,mkey),style:{background:C.greenD,border:"1px solid "+C.green+"33",color:C.green,padding:"2px 8px",borderRadius:"5px",cursor:"pointer",fontSize:"10px",fontFamily:"inherit",fontWeight:600}},"📥 ייצוא"),
             h("button",{onClick:()=>setShowReset(true),style:{background:"transparent",border:"1px solid "+C.bdr,color:C.txm,padding:"2px 7px",borderRadius:"5px",cursor:"pointer",fontSize:"9px",fontFamily:"inherit"}},"איפוס")
           )
         ),
-        // Month selector
+        // Month
         h("div",{style:{display:"flex",alignItems:"center",justifyContent:"center",gap:"12px",marginBottom:"12px",background:C.card,borderRadius:"10px",padding:"8px 16px",border:"1px solid "+C.bdr}},
           h("button",{onClick:prevMonth,style:{background:"transparent",border:"none",color:C.txd,cursor:"pointer",fontSize:"16px",padding:"2px 8px"}},"◀"),
-          h("div",{style:{textAlign:"center",minWidth:"140px"}},
-            h("div",{style:{fontSize:"18px",fontWeight:700,color:C.blue}},MHE[selMonth]),
-            h("div",{style:{fontSize:"12px",color:C.txd}},selYear)
-          ),
+          h("div",{style:{textAlign:"center",minWidth:"140px"}},h("div",{style:{fontSize:"18px",fontWeight:700,color:C.blue}},MHE[selMonth]),h("div",{style:{fontSize:"12px",color:C.txd}},selYear)),
           h("button",{onClick:nextMonth,style:{background:"transparent",border:"none",color:C.txd,cursor:"pointer",fontSize:"16px",padding:"2px 8px"}},"▶"),
-          existingMonths.length>0&&h("button",{onClick:()=>setShowCopyFrom(!showCopyFrom),style:{background:C.purpleD,border:"1px solid "+C.purple+"33",color:C.purple,padding:"3px 10px",borderRadius:"5px",cursor:"pointer",fontSize:"10px",fontFamily:"inherit",fontWeight:600,marginRight:"8px"}},"📋 העתק מחודש")
+          existingMonths.length>0&&h("button",{onClick:()=>setShowCopyFrom(!showCopyFrom),style:{background:C.purpleD,border:"1px solid "+C.purple+"33",color:C.purple,padding:"3px 10px",borderRadius:"5px",cursor:"pointer",fontSize:"10px",fontFamily:"inherit",fontWeight:600,marginRight:"8px"}},"📋 העתק")
         ),
-        showCopyFrom&&existingMonths.length>0&&h("div",{style:{background:C.card,border:"1px solid "+C.bdr,borderRadius:"8px",padding:"10px 14px",marginBottom:"10px"}},
-          h("div",{style:{fontSize:"11px",color:C.txd,marginBottom:"6px"}},"בחר חודש (יועתק התכנון, ללא אישורים):"),
-          h("div",{style:{display:"flex",flexWrap:"wrap",gap:"4px"}},existingMonths.map(k=>{const[y,m]=k.split("-");return h("button",{key:k,onClick:()=>copyFromMonth(k),style:{background:C.bg,border:"1px solid "+C.bdr,color:C.tx,padding:"4px 12px",borderRadius:"6px",cursor:"pointer",fontSize:"11px",fontFamily:"inherit"}},MHE[parseInt(m)-1]+" "+y)}))
-        ),
-        // Summary cards
-        h("div",{style:{display:"grid",gridTemplateColumns:"repeat(5, 1fr)",gap:"5px",marginBottom:"10px"}},
-          [{l:"ברוטו",v:s.grossIncome,c:C.blue,b:C.blueD},{l:"מתוכנן",v:totalPlan,c:C.amber,b:C.amberD},{l:"מאושר",v:totalApproved,c:C.purple,b:C.purpleD},{l:"שולם",v:totalPaid,c:C.cyan,b:C.cyanD},{l:"נותר",v:remaining,c:remaining>=0?C.green:C.red,b:remaining>=0?C.greenD:C.redD}].map((c,i)=>h(SummaryCard,{key:i,label:c.l,value:c.v,color:c.c,bg:c.b,cur:cur}))
-        ),
+        showCopyFrom&&existingMonths.length>0&&h("div",{style:{background:C.card,border:"1px solid "+C.bdr,borderRadius:"8px",padding:"10px 14px",marginBottom:"10px"}},h("div",{style:{fontSize:"11px",color:C.txd,marginBottom:"6px"}},"העתק תכנון (ללא אישורים):"),h("div",{style:{display:"flex",flexWrap:"wrap",gap:"4px"}},existingMonths.map(k=>{const[y,m]=k.split("-");return h("button",{key:k,onClick:()=>copyFromMonth(k),style:{background:C.bg,border:"1px solid "+C.bdr,color:C.tx,padding:"4px 12px",borderRadius:"6px",cursor:"pointer",fontSize:"11px",fontFamily:"inherit"}},MHE[parseInt(m)-1]+" "+y)}))),
+        // Summary
+        h("div",{style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:"5px",marginBottom:"10px"}},[{l:"ברוטו",v:s.grossIncome,c:C.blue,b:C.blueD},{l:"מתוכנן",v:totalPlan,c:C.amber,b:C.amberD},{l:"מאושר",v:totalApproved,c:C.purple,b:C.purpleD},{l:"שולם",v:totalPaid,c:C.cyan,b:C.cyanD},{l:"נותר",v:remaining,c:remaining>=0?C.green:C.red,b:remaining>=0?C.greenD:C.redD}].map((c,i)=>h(SC,{key:i,label:c.l,value:c.v,color:c.c,bg:c.b,cur}))),
         // Tabs
         h("div",{style:{display:"flex",gap:"2px"}},tabs.map(t=>h("button",{key:t.key,onClick:()=>setTab(t.key),style:{background:tab===t.key?C.card:"transparent",border:"1px solid "+(tab===t.key?C.bdr2:"transparent"),borderBottom:tab===t.key?"1px solid "+C.card:"1px solid "+C.bdr,color:tab===t.key?C.tx:C.txd,padding:"8px 12px",borderRadius:"7px 7px 0 0",cursor:"pointer",fontSize:"11px",fontWeight:tab===t.key?700:400,fontFamily:"inherit",marginBottom:"-1px",whiteSpace:"nowrap"}},t.icon+" "+t.label)))
       )
@@ -280,129 +237,91 @@ function App(){
 
     // CONTENT
     h("div",{style:{maxWidth:960,margin:"0 auto",padding:"14px"}},
-
-      // FP#1 TAB
+      // FP#1
       tab==="fp1"&&h("div",{style:{background:C.card,borderRadius:"11px",border:"1px solid "+C.bdr,padding:"16px"}},
         h("h2",{style:{margin:"0 0 3px",fontSize:"14px"}},"📋 תכנון פיננסי #1 — חובות"),
         h("p",{style:{margin:"0 0 12px",fontSize:"10px",color:C.txd}},"מיסים, ביטוח, ספקים, משכורות. תכנון בלבד."),
         h("div",{style:{background:"linear-gradient(135deg,"+C.blueD+","+C.purpleD+")",borderRadius:"9px",padding:"11px 13px",marginBottom:"12px",border:"1px solid "+C.blue+"20"}},
           h("div",{style:{fontSize:"10px",color:C.txd,marginBottom:"3px"}},"הכנסה ברוטו — "+MHE[selMonth]+" "+selYear),
-          h("div",{style:{display:"flex",alignItems:"center",gap:"5px"}},
-            h("span",{style:{fontSize:"15px",color:C.blue,fontWeight:700}},cur),
-            h("input",{type:"number",value:s.grossIncome,onChange:e=>setGross(parseFloat(e.target.value)||0),style:{background:"transparent",border:"none",color:C.tx,fontSize:"22px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",outline:"none",width:"100%"}})
-          )
+          h(GrossInput,{value:s.grossIncome,onChange:setGross,cur})
         ),
         h("div",{style:{display:"grid",gridTemplateColumns:"1fr 60px 80px 80px 26px",gap:"5px",padding:"0 8px 4px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"סוג"),h("div",{style:{textAlign:"center"}},"ערך"),h("div",{style:{textAlign:"center"}},"סכום"),h("div",null,"")),
-        h("div",{style:{display:"flex",flexDirection:"column",gap:"3px"}},s.fp1.map(item=>h(FpRow,{key:item.id,item:item,calcAmt:calcFp1,updFn:updFp1,rmFn:rmFp1,cur:cur}))),
+        h("div",{style:{display:"flex",flexDirection:"column",gap:"3px"}},s.fp1.map(item=>h(FpRow,{key:item.id,item,calcAmt:calcFp1,updFn:updFp1,rmFn:rmFp1}))),
         h(AddBtn,{onClick:addFp1}),
-        h(SecTot,{label:'סה"כ FP#1',value:fp1Plan,cur:cur,color:C.red}),
-        h(SecTot,{label:"ברוטו מתוקנת",value:corrGross,cur:cur,color:C.purple})
+        h(SecTot,{label:'סה"כ FP#1',value:fp1Plan,cur,color:C.red}),
+        h(SecTot,{label:"ברוטו מתוקנת",value:corrGross,cur,color:C.purple})
       ),
-
-      // FP#2 TAB
+      // FP#2
       tab==="fp2"&&h("div",null,
         h("div",{style:{background:C.card,borderRadius:"11px",border:"1px solid "+C.bdr,padding:"14px",marginBottom:"8px"}},
-          h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}},
-            h("h2",{style:{margin:0,fontSize:"14px"}},"📊 תכנון פיננסי — שיקול דעת"),
-            h(Badge,{color:C.purple,bg:C.purpleD},"מתוקנת: "+fmt(Math.round(corrGross),cur))
-          ),
+          h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}},h("h2",{style:{margin:0,fontSize:"14px"}},"📊 תכנון פיננסי — שיקול דעת"),h(Badge,{color:C.purple,bg:C.purpleD},"מתוקנת: "+fmt(Math.round(corrGross),cur))),
           h("div",{style:{fontSize:"10px",color:C.txd,fontWeight:600,marginBottom:"4px"}},"הקצאות כלליות"),
           h("div",{style:{display:"grid",gridTemplateColumns:"1fr 60px 80px 80px 26px",gap:"5px",padding:"0 8px 4px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"סוג"),h("div",{style:{textAlign:"center"}},"ערך"),h("div",{style:{textAlign:"center"}},"סכום"),h("div",null,"")),
-          h("div",{style:{display:"flex",flexDirection:"column",gap:"3px"}},s.fp2.map(item=>h(FpRow,{key:item.id,item:item,calcAmt:calcFp2,updFn:updFp2,rmFn:rmFp2,cur:cur}))),
+          h("div",{style:{display:"flex",flexDirection:"column",gap:"3px"}},s.fp2.map(item=>h(FpRow,{key:item.id,item,calcAmt:calcFp2,updFn:updFp2,rmFn:rmFp2}))),
           h(AddBtn,{onClick:addFp2,label:"+ הוסף הקצאה"}),
-          h(SecTot,{label:'סה"כ כלליות',value:fp2Plan,cur:cur,color:C.amber})
+          h(SecTot,{label:'סה"כ כלליות',value:fp2Plan,cur,color:C.amber})
         ),
-        divs.map(div=>{
-          const items=(s.divItems||[]).filter(i=>i.divId===div.id);
-          const dT=items.reduce((a,i)=>a+(i.amount||0),0);
-          const isOpen=expDivs[div.id];
+        divs.map(div=>{const items=(s.divItems||[]).filter(i=>i.divId===div.id);const dT=items.reduce((a,i)=>a+(i.amount||0),0);const isOpen=expDivs[div.id];
           return h("div",{key:div.id,style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,overflow:"hidden",marginBottom:"5px"}},
             h("div",{onClick:()=>setExpDivs(p=>({...p,[div.id]:!p[div.id]})),style:{padding:"9px 12px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:isOpen?"1px solid "+C.bdr:"none"}},
-              h("div",{style:{display:"flex",alignItems:"center",gap:"7px"}},h(Chev,{open:isOpen}),
-                editDivName===div.id?h("input",{autoFocus:true,value:div.name,onClick:e=>e.stopPropagation(),onChange:e=>updDivName(div.id,e.target.value),onBlur:()=>setEditDivName(null),onKeyDown:e=>e.key==="Enter"&&setEditDivName(null),style:{background:C.bg,border:"1px solid "+C.blue,color:C.tx,borderRadius:"3px",padding:"1px 5px",fontSize:"11px",fontFamily:"inherit",outline:"none"}}):h("span",{onDoubleClick:e=>{e.stopPropagation();setEditDivName(div.id)},style:{fontWeight:600,fontSize:"12px"}},div.name)
-              ),
+              h("div",{style:{display:"flex",alignItems:"center",gap:"7px"}},h(Chev,{open:isOpen}),editDivName===div.id?h("input",{autoFocus:true,value:div.name,onClick:e=>e.stopPropagation(),onChange:e=>updDivName(div.id,e.target.value),onBlur:()=>setEditDivName(null),onKeyDown:e=>e.key==="Enter"&&setEditDivName(null),style:{background:C.bg,border:"1px solid "+C.blue,color:C.tx,borderRadius:"3px",padding:"1px 5px",fontSize:"11px",fontFamily:"inherit",outline:"none"}}):h("span",{onDoubleClick:e=>{e.stopPropagation();setEditDivName(div.id)},style:{fontWeight:600,fontSize:"12px"}},div.name)),
               h("span",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",fontWeight:700,color:dT>0?C.blue:C.txm}},fmt(dT,cur))
             ),
-            isOpen&&h("div",{style:{padding:"8px 12px"}},
-              items.map(item=>h("div",{key:item.id,style:{display:"grid",gridTemplateColumns:"1fr 85px 26px",gap:"5px",alignItems:"center",padding:"5px 0",borderBottom:"1px solid "+C.bdr+"08"}},
-                h(TI,{value:item.desc,onChange:v=>updDivItem(item.id,"desc",v),placeholder:"תיאור..."}),
-                h(NI,{value:item.amount,onChange:v=>updDivItem(item.id,"amount",v),w:"75px"}),
-                h(RemBtn,{onClick:()=>rmDivItem(item.id)})
-              )),
-              h(AddBtn,{onClick:()=>addDivItem(div.id),label:"+ פריט"})
-            )
-          );
+            isOpen&&h("div",{style:{padding:"8px 12px"}},items.map(item=>h("div",{key:item.id,style:{display:"grid",gridTemplateColumns:"1fr 85px 26px",gap:"5px",alignItems:"center",padding:"5px 0",borderBottom:"1px solid "+C.bdr+"08"}},h(DTI,{value:item.desc,onChange:v=>updDivItem(item.id,"desc",v),placeholder:"תיאור..."}),h(DNI,{value:item.amount,onChange:v=>updDivItem(item.id,"amount",v),w:"75px"}),h(RemBtn,{onClick:()=>rmDivItem(item.id)}))),h(AddBtn,{onClick:()=>addDivItem(div.id),label:"+ פריט"}))
+          )
         }),
-        h(SecTot,{label:'סה"כ תכנון',value:fp2Plan+divPlan,cur:cur,color:C.amber})
+        h(SecTot,{label:'סה"כ תכנון',value:fp2Plan+divPlan,cur,color:C.amber})
       ),
-
-      // APPROVE TAB
+      // APPROVE
       tab==="approve"&&h("div",null,
         h("div",{style:{background:C.card,borderRadius:"11px",border:"1px solid "+C.bdr,padding:"14px",marginBottom:"10px"}},
-          h("h2",{style:{margin:"0 0 3px",fontSize:"14px"}},"🔍 אישור הקצאות — "+MHE[selMonth]+" "+selYear),
-          h("p",{style:{margin:"0 0 10px",fontSize:"10px",color:C.txd}},'אשר סכום מלא או חלקי. הזן סכום ידנית או לחץ "אשר".'),
-          h("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"5px"}},
-            [{l:"ברוטו",v:s.grossIncome,c:C.blue,b:C.blueD},{l:"מאושר",v:totalApproved,c:C.purple,b:C.purpleD},{l:"נותר",v:remaining,c:remaining>=0?C.green:C.red,b:remaining>=0?C.greenD:C.redD}].map((c,i)=>h(SummaryCard,{key:i,label:c.l,value:c.v,color:c.c,bg:c.b,cur:cur,big:true}))
-          )
+          h("h2",{style:{margin:"0 0 3px",fontSize:"14px"}},"🔍 אישור — "+MHE[selMonth]+" "+selYear),
+          h("p",{style:{margin:"0 0 10px",fontSize:"10px",color:C.txd}},'אשר סכום מלא או חלקי.'),
+          h("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"5px"}},[{l:"ברוטו",v:s.grossIncome,c:C.blue,b:C.blueD},{l:"מאושר",v:totalApproved,c:C.purple,b:C.purpleD},{l:"נותר",v:remaining,c:remaining>=0?C.green:C.red,b:remaining>=0?C.greenD:C.redD}].map((c,i)=>h(SC,{key:i,label:c.l,value:c.v,color:c.c,bg:c.b,cur,big:true})))
         ),
-        h(CollapseSection,{title:"📋 FP#1 — חובות",badge:fmt(s.fp1.reduce((a,i)=>a+(s.approval[i.id]?.approved?s.approval[i.id].approvedAmount:0),0),cur),badgeColor:C.red,badgeBg:C.redD,isOpen:expApp.fp1,onToggle:()=>setExpApp(p=>({...p,fp1:!p.fp1})),headerBg:C.redD+"44"},colHeaders4,s.fp1.map(i=>h(ApprovalRow,{key:i.id,id:i.id,desc:i.desc,requestedAmt:calcFp1(i),extra:i.isPct?i.val+"%":null}))),
-        h(CollapseSection,{title:"📊 הקצאות כלליות",badge:fmt(s.fp2.reduce((a,i)=>a+(s.approval[i.id]?.approved?s.approval[i.id].approvedAmount:0),0),cur),badgeColor:C.amber,badgeBg:C.amberD,isOpen:expApp.fp2,onToggle:()=>setExpApp(p=>({...p,fp2:!p.fp2})),headerBg:C.amberD+"44"},colHeaders4,s.fp2.map(i=>h(ApprovalRow,{key:i.id,id:i.id,desc:i.desc,requestedAmt:calcFp2(i),extra:i.isPct?i.val+"%":null}))),
-        divs.map(div=>{
-          const items=(s.divItems||[]).filter(i=>i.divId===div.id);if(!items.length)return null;
-          const dA=items.reduce((a,i)=>a+(s.approval[i.id]?.approved?s.approval[i.id].approvedAmount:0),0);
-          return h(CollapseSection,{key:div.id,title:"🏢 "+div.name,badge:fmt(dA,cur),badgeColor:C.blue,badgeBg:C.blueD,isOpen:expDivs[div.id],onToggle:()=>setExpDivs(p=>({...p,[div.id]:!p[div.id]})),headerBg:C.blueD+"44"},colHeaders4,items.map(i=>h(ApprovalRow,{key:i.id,id:i.id,desc:i.desc,requestedAmt:i.amount||0})));
+        // FP1 approval
+        h("div",{style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,overflow:"hidden",marginBottom:"6px"}},
+          h("div",{onClick:()=>setExpApp(p=>({...p,fp1:!p.fp1})),style:{padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:expApp.fp1?"1px solid "+C.bdr:"none",background:C.redD+"44"}},h("div",{style:{display:"flex",alignItems:"center",gap:"7px"}},h(Chev,{open:expApp.fp1}),h("span",{style:{fontWeight:700,fontSize:"12px"}},"📋 FP#1 — חובות")),h(Badge,{color:C.red,bg:C.redD},fmt(s.fp1.reduce((a,i)=>a+(s.approval[i.id]?.approved?s.approval[i.id].approvedAmount:0),0),cur))),
+          expApp.fp1&&h("div",{style:{padding:"8px 14px"}},colH4,s.fp1.map(i=>h(ApprovalRow,{key:i.id,id:i.id,desc:i.desc,requestedAmt:calcFp1(i),extra:i.isPct?i.val+"%":null})))
+        ),
+        // FP2 approval
+        h("div",{style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,overflow:"hidden",marginBottom:"6px"}},
+          h("div",{onClick:()=>setExpApp(p=>({...p,fp2:!p.fp2})),style:{padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:expApp.fp2?"1px solid "+C.bdr:"none",background:C.amberD+"44"}},h("div",{style:{display:"flex",alignItems:"center",gap:"7px"}},h(Chev,{open:expApp.fp2}),h("span",{style:{fontWeight:700,fontSize:"12px"}},"📊 הקצאות כלליות")),h(Badge,{color:C.amber,bg:C.amberD},fmt(s.fp2.reduce((a,i)=>a+(s.approval[i.id]?.approved?s.approval[i.id].approvedAmount:0),0),cur))),
+          expApp.fp2&&h("div",{style:{padding:"8px 14px"}},colH4,s.fp2.map(i=>h(ApprovalRow,{key:i.id,id:i.id,desc:i.desc,requestedAmt:calcFp2(i),extra:i.isPct?i.val+"%":null})))
+        ),
+        // Div approvals
+        divs.map(div=>{const items=(s.divItems||[]).filter(i=>i.divId===div.id);if(!items.length)return null;const dA=items.reduce((a,i)=>a+(s.approval[i.id]?.approved?s.approval[i.id].approvedAmount:0),0);const isOpen=expDivs[div.id];
+          return h("div",{key:div.id,style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,overflow:"hidden",marginBottom:"5px"}},
+            h("div",{onClick:()=>setExpDivs(p=>({...p,[div.id]:!p[div.id]})),style:{padding:"9px 12px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:isOpen?"1px solid "+C.bdr:"none",background:C.blueD+"44"}},h("div",{style:{display:"flex",alignItems:"center",gap:"7px"}},h(Chev,{open:isOpen}),h("span",{style:{fontWeight:600,fontSize:"11px"}},"🏢 "+div.name)),h(Badge,{color:C.blue,bg:C.blueD},fmt(dA,cur))),
+            isOpen&&h("div",{style:{padding:"8px 12px"}},colH4,items.map(i=>h(ApprovalRow,{key:i.id,id:i.id,desc:i.desc,requestedAmt:i.amount||0})))
+          )
         }),
-        h(SecTot,{label:'סה"כ מאושר',value:totalApproved,cur:cur,color:C.purple}),
-        h(SecTot,{label:"נותר מברוטו",value:remaining,cur:cur,color:remaining>=0?C.green:C.red})
+        h(SecTot,{label:'סה"כ מאושר',value:totalApproved,cur,color:C.purple}),
+        h(SecTot,{label:"נותר מברוטו",value:remaining,cur,color:remaining>=0?C.green:C.red})
       ),
-
-      // APPROVED + PAYMENTS TAB
+      // APPROVED + PAYMENTS
       tab==="approved"&&(()=>{
-        const approvedItems=allItems.filter(i=>s.approval[i.id]?.approved);
-        const fp1I=approvedItems.filter(i=>i._src==="fp1");
-        const fp2I=approvedItems.filter(i=>i._src==="fp2");
-        const divG={};approvedItems.filter(i=>i._src==="div").forEach(i=>{const div=divs.find(d=>d.id===i.divId);const k=div?.id||"x";if(!divG[k])divG[k]={name:div?.name||"אחר",items:[]};divG[k].items.push(i)});
-        const payColH=h("div",{style:{padding:"0 12px 4px",display:"grid",gridTemplateColumns:"1fr 75px 85px 75px 70px",gap:"5px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"מאושר"),h("div",{style:{textAlign:"center"}},"שולם"),h("div",{style:{textAlign:"center"}},"יתרה"),h("div",{style:{textAlign:"center"}},"סטטוס"));
+        const ai=allItems.filter(i=>s.approval[i.id]?.approved);const f1=ai.filter(i=>i._src==="fp1");const f2=ai.filter(i=>i._src==="fp2");
+        const dG={};ai.filter(i=>i._src==="div").forEach(i=>{const div=divs.find(d=>d.id===i.divId);const k=div?.id||"x";if(!dG[k])dG[k]={name:div?.name||"אחר",items:[]};dG[k].items.push(i)});
+        const pH=h("div",{style:{padding:"0 12px 4px",display:"grid",gridTemplateColumns:"1fr 75px 85px 75px 70px",gap:"5px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"מאושר"),h("div",{style:{textAlign:"center"}},"שולם"),h("div",{style:{textAlign:"center"}},"יתרה"),h("div",{style:{textAlign:"center"}},"סטטוס"));
         return h("div",null,
           h("div",{style:{background:C.card,borderRadius:"11px",border:"1px solid "+C.bdr,padding:"14px",marginBottom:"10px"}},
-            h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}},
-              h("div",null,h("h2",{style:{margin:0,fontSize:"14px"}},"✅ מאושרות — "+MHE[selMonth]+" "+selYear),h("p",{style:{margin:"2px 0 0",fontSize:"10px",color:C.txd}},"מעקב תשלומים")),
-              h("button",{onClick:()=>exportCSV(s,calcFp1,calcFp2,cur,mkey),style:{background:C.greenD,border:"1px solid "+C.green+"33",color:C.green,padding:"5px 12px",borderRadius:"6px",cursor:"pointer",fontSize:"11px",fontFamily:"inherit",fontWeight:600}},"📥 ייצוא")
-            ),
-            h("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"5px"}},
-              [{l:"מאושר",v:totalApproved,c:C.purple,b:C.purpleD},{l:"שולם",v:totalPaid,c:C.cyan,b:C.cyanD},{l:"ממתין",v:totalApproved-totalPaid,c:C.amber,b:C.amberD},{l:"נותר",v:remaining,c:remaining>=0?C.green:C.red,b:remaining>=0?C.greenD:C.redD}].map((c,i)=>h(SummaryCard,{key:i,label:c.l,value:c.v,color:c.c,bg:c.b,cur:cur,big:true}))
-            )
+            h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}},h("div",null,h("h2",{style:{margin:0,fontSize:"14px"}},"✅ מאושרות — "+MHE[selMonth]+" "+selYear),h("p",{style:{margin:"2px 0 0",fontSize:"10px",color:C.txd}},"מעקב תשלומים")),h("button",{onClick:()=>exportCSV(s,calcFp1,calcFp2,cur,mkey),style:{background:C.greenD,border:"1px solid "+C.green+"33",color:C.green,padding:"5px 12px",borderRadius:"6px",cursor:"pointer",fontSize:"11px",fontFamily:"inherit",fontWeight:600}},"📥 ייצוא")),
+            h("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"5px"}},[{l:"מאושר",v:totalApproved,c:C.purple,b:C.purpleD},{l:"שולם",v:totalPaid,c:C.cyan,b:C.cyanD},{l:"ממתין",v:totalApproved-totalPaid,c:C.amber,b:C.amberD},{l:"נותר",v:remaining,c:remaining>=0?C.green:C.red,b:remaining>=0?C.greenD:C.redD}].map((c,i)=>h(SC,{key:i,label:c.l,value:c.v,color:c.c,bg:c.b,cur,big:true})))
           ),
-          approvedItems.length===0&&h("div",{style:{textAlign:"center",padding:"30px",color:C.txm,fontSize:"12px"}},'אין פריטים מאושרים. עבור לטאב "אישור".'),
-          approvedItems.length>0&&payColH,
-          fp1I.length>0&&h("div",{style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,padding:"8px 12px",marginBottom:"5px"}},h("div",{style:{fontSize:"10px",fontWeight:700,color:C.red,marginBottom:"4px"}},"📋 FP#1"),fp1I.map(i=>h(PaymentRow,{key:i.id,id:i.id,desc:i.desc,approvedAmt:s.approval[i.id].approvedAmount,section:"FP#1"}))),
-          fp2I.length>0&&h("div",{style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,padding:"8px 12px",marginBottom:"5px"}},h("div",{style:{fontSize:"10px",fontWeight:700,color:C.amber,marginBottom:"4px"}},"📊 כלליות"),fp2I.map(i=>h(PaymentRow,{key:i.id,id:i.id,desc:i.desc,approvedAmt:s.approval[i.id].approvedAmount,section:"כללי"}))),
-          Object.entries(divG).map(([k,g])=>h("div",{key:k,style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,padding:"8px 12px",marginBottom:"5px"}},h("div",{style:{fontSize:"10px",fontWeight:700,color:C.blue,marginBottom:"4px"}},"🏢 "+g.name),g.items.map(i=>h(PaymentRow,{key:i.id,id:i.id,desc:i.desc,approvedAmt:s.approval[i.id].approvedAmount,section:g.name})))),
-          approvedItems.length>0&&h("div",{style:{marginTop:"10px",padding:"12px 16px",background:"linear-gradient(135deg,"+C.cyanD+","+C.card+")",borderRadius:"11px",border:"1px solid "+C.cyan+"20"}},
-            h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
-              h("div",null,h("div",{style:{fontSize:"12px",fontWeight:700}},"סיכום — "+MHE[selMonth]),h("div",{style:{fontSize:"10px",color:C.txd,marginTop:"2px"}},approvedItems.filter(i=>s.payment[i.id]?.status==="paid").length+" שולמו · "+approvedItems.filter(i=>s.payment[i.id]?.status==="partial").length+" חלקי · "+approvedItems.filter(i=>!s.payment[i.id]?.status||s.payment[i.id]?.status==="unpaid").length+" ממתינים")),
-              h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"18px",fontWeight:700,color:C.cyan}},fmt(totalPaid,cur),h("span",{style:{fontSize:"10px",color:C.txd,fontWeight:400}}," / "+fmt(totalApproved,cur)))
-            )
-          )
-        );
+          ai.length===0&&h("div",{style:{textAlign:"center",padding:"30px",color:C.txm,fontSize:"12px"}},'אין פריטים מאושרים. עבור ל"אישור".'),
+          ai.length>0&&pH,
+          f1.length>0&&h("div",{style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,padding:"8px 12px",marginBottom:"5px"}},h("div",{style:{fontSize:"10px",fontWeight:700,color:C.red,marginBottom:"4px"}},"📋 FP#1"),f1.map(i=>h(PaymentRow,{key:i.id,id:i.id,desc:i.desc,approvedAmt:s.approval[i.id].approvedAmount,section:"FP#1"}))),
+          f2.length>0&&h("div",{style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,padding:"8px 12px",marginBottom:"5px"}},h("div",{style:{fontSize:"10px",fontWeight:700,color:C.amber,marginBottom:"4px"}},"📊 כלליות"),f2.map(i=>h(PaymentRow,{key:i.id,id:i.id,desc:i.desc,approvedAmt:s.approval[i.id].approvedAmount,section:"כללי"}))),
+          Object.entries(dG).map(([k,g])=>h("div",{key:k,style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,padding:"8px 12px",marginBottom:"5px"}},h("div",{style:{fontSize:"10px",fontWeight:700,color:C.blue,marginBottom:"4px"}},"🏢 "+g.name),g.items.map(i=>h(PaymentRow,{key:i.id,id:i.id,desc:i.desc,approvedAmt:s.approval[i.id].approvedAmount,section:g.name})))),
+          ai.length>0&&h("div",{style:{marginTop:"10px",padding:"12px 16px",background:"linear-gradient(135deg,"+C.cyanD+","+C.card+")",borderRadius:"11px",border:"1px solid "+C.cyan+"20"}},h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},h("div",null,h("div",{style:{fontSize:"12px",fontWeight:700}},"סיכום — "+MHE[selMonth]),h("div",{style:{fontSize:"10px",color:C.txd,marginTop:"2px"}},ai.filter(i=>s.payment[i.id]?.status==="paid").length+" שולמו · "+ai.filter(i=>s.payment[i.id]?.status==="partial").length+" חלקי · "+ai.filter(i=>!s.payment[i.id]?.status||s.payment[i.id]?.status==="unpaid").length+" ממתינים")),h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"18px",fontWeight:700,color:C.cyan}},fmt(totalPaid,cur),h("span",{style:{fontSize:"10px",color:C.txd,fontWeight:400}}," / "+fmt(totalApproved,cur)))))
+        )
       })()
     ),
-
-    // Reset modal
-    showReset&&h("div",{style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000},onClick:()=>setShowReset(false)},
-      h("div",{onClick:e=>e.stopPropagation(),style:{background:C.card,borderRadius:"14px",padding:"22px",border:"1px solid "+C.bdr,maxWidth:320,width:"90%",textAlign:"center"}},
-        h("div",{style:{fontSize:"24px",marginBottom:"6px"}},"⚠️"),
-        h("h3",{style:{margin:"0 0 4px",fontSize:"13px"}},"איפוס "+MHE[selMonth]+" "+selYear+"?"),
-        h("p",{style:{color:C.txd,fontSize:"11px",margin:"0 0 14px"}},"רק החודש הנוכחי יאופס."),
-        h("div",{style:{display:"flex",gap:"8px",justifyContent:"center"}},
-          h("button",{onClick:()=>setShowReset(false),style:{background:C.bg,border:"1px solid "+C.bdr,color:C.txd,padding:"6px 14px",borderRadius:"6px",cursor:"pointer",fontSize:"11px",fontFamily:"inherit"}},"ביטול"),
-          h("button",{onClick:resetMonth,style:{background:C.red,border:"none",color:"#fff",padding:"6px 14px",borderRadius:"6px",cursor:"pointer",fontSize:"11px",fontFamily:"inherit",fontWeight:600}},"אפס")
-        )
-      )
-    )
+    // Reset
+    showReset&&h("div",{style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000},onClick:()=>setShowReset(false)},h("div",{onClick:e=>e.stopPropagation(),style:{background:C.card,borderRadius:"14px",padding:"22px",border:"1px solid "+C.bdr,maxWidth:320,width:"90%",textAlign:"center"}},h("div",{style:{fontSize:"24px",marginBottom:"6px"}},"⚠️"),h("h3",{style:{margin:"0 0 4px",fontSize:"13px"}},"איפוס "+MHE[selMonth]+" "+selYear+"?"),h("p",{style:{color:C.txd,fontSize:"11px",margin:"0 0 14px"}},"רק החודש הנוכחי."),h("div",{style:{display:"flex",gap:"8px",justifyContent:"center"}},h("button",{onClick:()=>setShowReset(false),style:{background:C.bg,border:"1px solid "+C.bdr,color:C.txd,padding:"6px 14px",borderRadius:"6px",cursor:"pointer",fontSize:"11px",fontFamily:"inherit"}},"ביטול"),h("button",{onClick:resetMonth,style:{background:C.red,border:"none",color:"#fff",padding:"6px 14px",borderRadius:"6px",cursor:"pointer",fontSize:"11px",fontFamily:"inherit",fontWeight:600}},"אפס"))))
   );
 }
-
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
 </script>
 </body>
