@@ -17,6 +17,7 @@ input[type=number]{-moz-appearance:textfield}
 <body>
 <div id="root"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;color:#7b8a9e;font-size:16px">טוען...</div></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script>
@@ -39,29 +40,35 @@ const DIVS=[{id:"div1",name:"דיביזיה 1 — ייסוד ותקשורות"},
 function freshMonth(){return{grossIncome:0,vatAmount:0,fp1:[{id:gid(),desc:"ביטוח לאומי",val:10,isPct:true},{id:gid(),desc:"מס הכנסה",val:10,isPct:true}],fp2:[],divisions:DIVS.map(d=>({...d})),divItems:[],approval:{},payment:{}}}
 const C={bg:"#f0f2f5",card:"#ffffff",card2:"#f8f9fb",bdr:"#e0e4ea",bdr2:"#d0d5dd",tx:"#1a1d23",txd:"#5f6b7a",txm:"#9ca3b0",blue:"#2563eb",blueD:"#dbeafe",green:"#059669",greenD:"#d1fae5",red:"#dc2626",redD:"#fee2e2",amber:"#d97706",amberD:"#fef3c7",purple:"#7c3aed",purpleD:"#ede9fe",cyan:"#0891b2",cyanD:"#cffafe"};
 
-function exportCSV(s,calcFp1,calcFp2,cur,mkey){const rows=[["מקור","תיאור","מבוקש","מאושר","שולם","סטטוס"]];rows.push(["חודש",mkey,"","","",""]);rows.push(["הכנסה ברוטו","",s.grossIncome,"","",""]);rows.push([]);function addI(sec,items,fn){items.forEach(i=>{const amt=fn(i);const ap=s.approval[i.id];const py=s.payment[i.id];rows.push([sec,i.desc||"",Math.round(amt),ap?.approved?ap.approvedAmount:0,py?.paidAmount||0,!ap?.approved?"לא מאושר":py?.status==="paid"?"שולם במלואו":py?.status==="partial"?"שולם חלקית":"ממתין"])})}rows.push(["=== FP#1 ==="]);addI("FP#1",s.fp1,calcFp1);rows.push([]);rows.push(["=== הקצאות כלליות ==="]);addI("כללי",s.fp2,calcFp2);(s.divisions||[]).forEach(div=>{const items=(s.divItems||[]).filter(x=>x.divId===div.id);if(items.length){rows.push([]);rows.push(["=== "+div.name+" ==="]);addI(div.name,items,i=>i.amount||0)}});const bom="\uFEFF";const csv=rows.map(r=>r.map(c=>'"'+String(c??"").replace(/"/g,'""')+'"').join(",")).join("\n");const blob=new Blob([bom+csv],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="FP_BUZZ_"+mkey+".csv";a.click();URL.revokeObjectURL(url)}
+function exportCSV(s,calcFp1,calcFp2,cur,mkey){const rows=[["מקור","תיאור","מבוקש","מאושר","שולם","סטטוס"]];rows.push(["חודש",mkey,"","","",""]);rows.push(["הכנסה ברוטו","",s.grossIncome,"","",""]);rows.push([]);function addI(sec,items,fn){items.forEach(i=>{const amt=fn(i);const ap=s.approval[i.id];const py=s.payment[i.id];const subs=py?.subs||[];const paidAmt=subs.length>0?subs.reduce((a,s)=>a+(s.paid||0),0):(py?.paidAmount||0);rows.push([sec,i.desc||"",Math.round(amt),ap?.approved?ap.approvedAmount:0,paidAmt,!ap?.approved?"לא מאושר":paidAmt>=(ap?.approvedAmount||1)?"שולם במלואו":paidAmt>0?"שולם חלקית":"ממתין"]);if(subs.length>0)subs.forEach(s=>rows.push(["  ↳ פירוט",s.desc||"",s.amount||0,"",s.paid||0,""]))})}rows.push(["=== FP#1 ==="]);addI("FP#1",s.fp1,calcFp1);rows.push([]);rows.push(["=== הקצאות כלליות ==="]);addI("כללי",s.fp2,calcFp2);(s.divisions||[]).forEach(div=>{const items=(s.divItems||[]).filter(x=>x.divId===div.id);if(items.length){rows.push([]);rows.push(["=== "+div.name+" ==="]);addI(div.name,items,i=>i.amount||0)}});const bom="\uFEFF";const csv=rows.map(r=>r.map(c=>'"'+String(c??"").replace(/"/g,'""')+'"').join(",")).join("\n");const blob=new Blob([bom+csv],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="FP_BUZZ_"+mkey+".csv";a.click();URL.revokeObjectURL(url)}
 
 // === UNCONTROLLED INPUT COMPONENTS ===
 // These use refs + defaultValue so React NEVER touches the input value after mount.
 // Updates happen ONLY on blur or after typing stops.
 
 function UNum({id,val,onChange,color,w}){
+  const t=useRef(null);
   return h("input",{type:"number",defaultValue:val??"",
-    onBlur:e=>{const v=parseFloat(e.target.value)||0;onChange(v)},
+    onInput:e=>{const el=e.target;if(t.current)clearTimeout(t.current);t.current=setTimeout(()=>{const v=parseFloat(el.value)||0;silentUpdate(id,v)},1500)},
+    onBlur:e=>{if(t.current){clearTimeout(t.current);t.current=null}const v=parseFloat(e.target.value)||0;onChange(v)},
     style:{background:C.bg,border:"1px solid "+C.bdr,color:color||"#2563eb",borderRadius:"5px",padding:"5px 6px",fontSize:"12px",fontFamily:"'JetBrains Mono',monospace",textAlign:"center",outline:"none",width:w||"80px"}});
 }
 
 function UTxt({id,val,onChange,placeholder}){
+  const t=useRef(null);
   return h("input",{defaultValue:val??"",placeholder:placeholder||"",
-    onBlur:e=>{onChange(e.target.value)},
+    onInput:e=>{const el=e.target;if(t.current)clearTimeout(t.current);t.current=setTimeout(()=>{silentUpdate(id,el.value)},1500)},
+    onBlur:e=>{if(t.current){clearTimeout(t.current);t.current=null}onChange(e.target.value)},
     style:{background:"transparent",border:"none",color:C.tx,fontSize:"12px",fontFamily:"inherit",outline:"none",borderBottom:"1px solid "+C.bdr,paddingBottom:"2px",width:"100%"}});
 }
 
 function UGross({val,onChange,cur}){
+  const t=useRef(null);
   return h("div",{style:{display:"flex",alignItems:"center",gap:"5px"}},
     h("span",{style:{fontSize:"15px",color:C.blue,fontWeight:700}},cur),
     h("input",{type:"number",defaultValue:val??"",
-      onBlur:e=>{onChange(parseFloat(e.target.value)||0)},
+      onInput:e=>{const el=e.target;if(t.current)clearTimeout(t.current);t.current=setTimeout(()=>{silentUpdate("_gross_",parseFloat(el.value)||0)},1500)},
+      onBlur:e=>{if(t.current){clearTimeout(t.current);t.current=null}onChange(parseFloat(e.target.value)||0)},
       style:{background:"transparent",border:"none",color:C.tx,fontSize:"22px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",outline:"none",width:"100%"}}));
 }
 
@@ -88,11 +95,33 @@ function App(){
   const loaded=useRef(false);
   const saveT=useRef(null);
   const dataRef=useRef(null);
+  const silentSaveT=useRef(null);
+  const mkeyRef=useRef(null);
 
-  const mkey=mkk(selYear,selMonth);
+  const mkey=mkk(selYear,selMonth);mkeyRef.current=mkey;
 
   useEffect(()=>{dbLoad().then(d=>{if(!d)d={currency:"₪",months:{}};if(!d.months)d.months={};setData(d);dataRef.current=d;DIVS.forEach(dv=>setExpDivs(p=>({...p,[dv.id]:true})));loaded.current=true})},[]);
   useEffect(()=>{dataRef.current=data},[data]);
+
+  function silentUpdate(fieldId,value){
+    if(!dataRef.current)return;
+    const mk=mkeyRef.current;
+    const d=JSON.parse(JSON.stringify(dataRef.current));
+    if(!d.months[mk])d.months[mk]=freshMonth();
+    const m=d.months[mk];
+    if(fieldId==="_gross_"){m.grossIncome=value}
+    else if(fieldId==="vat"){m.vatAmount=value}
+    else{
+      let found=false;
+      m.fp1=m.fp1.map(i=>{if(i.id===fieldId){found=true;return typeof value==="string"?{...i,desc:value}:{...i,val:value}}return i});
+      if(!found)m.fp2=m.fp2.map(i=>{if(i.id===fieldId){found=true;return typeof value==="string"?{...i,desc:value}:{...i,val:value}}return i});
+      if(!found)m.divItems=(m.divItems||[]).map(i=>{if(i.id===fieldId){found=true;return typeof value==="string"?{...i,desc:value}:{...i,amount:typeof value==="number"?value:i.amount}}return i});
+      if(!found){const ap=m.approval||{};if(fieldId.startsWith&&typeof value==="number"){ap[fieldId]={approved:value>0,approvedAmount:value};m.approval=ap}}
+    }
+    dataRef.current=d;
+    if(silentSaveT.current)clearTimeout(silentSaveT.current);
+    silentSaveT.current=setTimeout(()=>{dbSave(dataRef.current)},3000);
+  }
   useEffect(()=>{
     if(!loaded.current||!data)return;
     if(saveT.current)clearTimeout(saveT.current);
@@ -136,6 +165,11 @@ function App(){
   const rmDivItem=id=>sM(m=>{const a={...m.approval};delete a[id];const p={...m.payment};delete p[id];return{...m,divItems:(m.divItems||[]).filter(i=>i.id!==id),approval:a,payment:p}});
   const setApproval=(id,ok,amt)=>sM(m=>({...m,approval:{...m.approval,[id]:{approved:ok,approvedAmount:ok?amt:0}}}));
   const setPayment=(id,pA)=>{const aA=s.approval[id]?.approvedAmount||0;sM(m=>({...m,payment:{...m.payment,[id]:{status:pA>=aA&&aA>0?"paid":pA>0?"partial":"unpaid",paidAmount:pA}}}))};
+  const addSub=(itemId)=>sM(m=>{const py={...(m.payment||{})};const cur=py[itemId]||{status:"unpaid",paidAmount:0,subs:[]};const subs=[...(cur.subs||[]),{id:gid(),desc:"",amount:0,paid:0}];py[itemId]={...cur,subs};return{...m,payment:py}});
+  const updSub=(itemId,subId,field,val)=>sM(m=>{const py={...(m.payment||{})};const cur=py[itemId]||{status:"unpaid",paidAmount:0,subs:[]};const subs=(cur.subs||[]).map(s=>s.id===subId?{...s,[field]:val}:s);const totalPaid=subs.reduce((a,s)=>a+(s.paid||0),0);const apAmt=(m.approval||{})[itemId]?.approvedAmount||0;const status=totalPaid>=apAmt&&apAmt>0?"paid":totalPaid>0?"partial":"unpaid";py[itemId]={...cur,subs,paidAmount:totalPaid,status};return{...m,payment:py}});
+  const rmSub=(itemId,subId)=>sM(m=>{const py={...(m.payment||{})};const cur=py[itemId]||{status:"unpaid",paidAmount:0,subs:[]};const subs=(cur.subs||[]).filter(s=>s.id!==subId);const totalPaid=subs.reduce((a,s)=>a+(s.paid||0),0);const apAmt=(m.approval||{})[itemId]?.approvedAmount||0;const status=totalPaid>=apAmt&&apAmt>0?"paid":totalPaid>0?"partial":"unpaid";py[itemId]={...cur,subs,paidAmount:totalPaid,status};return{...m,payment:py}});
+  const[expandedSubs,setExpandedSubs]=useState({});
+  const toggleSub=id=>setExpandedSubs(p=>({...p,[id]:!p[id]}));
   const resetMonth=()=>{sM(()=>freshMonth());setShowReset(false)};
   const existMo=Object.keys(data.months).filter(k=>k!==mkey&&data.months[k].grossIncome>0).sort().reverse();
   const copyFrom=sk=>{const src=data.months[sk];if(!src)return;const mi=item=>({...item,id:gid()});sM(()=>({grossIncome:src.grossIncome,fp1:src.fp1.map(mi),fp2:src.fp2.map(mi),divisions:(src.divisions||DIVS).map(d=>({...d})),divItems:(src.divItems||[]).map(mi),approval:{},payment:{}}));setShowCopy(false)};
@@ -149,14 +183,27 @@ function App(){
       h(UNum,{id:"ap_"+id,val:isA?ap.approvedAmount:0,onChange:v=>setApproval(id,v>0,v),color:isA?C.green:C.txd,w:"85px"}),
       h("div",{style:{display:"flex",justifyContent:"center"}},h("button",{onClick:()=>{if(isA)setApproval(id,false,0);else setApproval(id,true,Math.round(rAmt))},style:{background:isA?C.greenD:C.bdr+"55",border:"1px solid "+(isA?C.green:C.bdr)+"44",color:isA?C.green:C.txm,borderRadius:"5px",padding:"3px 8px",cursor:"pointer",fontSize:"10px",fontWeight:700,fontFamily:"inherit"}},isA?"✓":"אשר")))}
 
-  function PRow(p){const{id,desc,aAmt,sec}=p;const py=s.payment[id]||{};const pA=py.paidAmount||0;const st=py.status||"unpaid";
+  function PRow(p){const{id,desc,aAmt,sec}=p;const py=s.payment[id]||{};const subs=py.subs||[];const hasSubs=subs.length>0;const pA=hasSubs?subs.reduce((a,s)=>a+(s.paid||0),0):(py.paidAmount||0);const st=pA>=aAmt&&aAmt>0?"paid":pA>0?"partial":"unpaid";
     const stL=st==="paid"?"שולם":st==="partial"?"חלקי":"ממתין";const stC=st==="paid"?C.green:st==="partial"?C.amber:C.txm;
-    return h("div",{style:{display:"grid",gridTemplateColumns:"1fr 75px 85px 75px 70px",gap:"5px",alignItems:"center",padding:"6px 0",borderBottom:"1px solid "+C.bdr+"08"}},
-      h("div",null,h("div",{style:{fontSize:"11px",color:C.tx}},desc),h("div",{style:{fontSize:"9px",color:C.txm}},sec)),
-      h("div",{style:{textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",color:C.tx}},fmt(aAmt,cur)),
-      h(UNum,{id:"py_"+id,val:pA,onChange:v=>setPayment(id,v),color:pA>0?C.cyan:C.txd,w:"75px"}),
-      h("div",{style:{textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",color:C.txd}},fmt(aAmt-pA,cur)),
-      h("div",{style:{display:"flex",justifyContent:"center"}},h("span",{style:{fontSize:"10px",fontWeight:600,color:stC,background:stC+"15",padding:"2px 8px",borderRadius:"8px",whiteSpace:"nowrap"}},stL)))}
+    const isExp=expandedSubs[id];
+    return h("div",null,
+      h("div",{style:{display:"grid",gridTemplateColumns:"28px 1fr 75px 85px 75px 70px",gap:"5px",alignItems:"center",padding:"6px 0",borderBottom:isExp?"none":"1px solid "+C.bdr+"08"}},
+        h("button",{onClick:()=>toggleSub(id),style:{background:"transparent",border:"none",color:C.blue,cursor:"pointer",fontSize:"11px",fontFamily:"inherit",padding:"2px"}},isExp?"▼":"פרט"),
+        h("div",null,h("div",{style:{fontSize:"11px",color:C.tx}},desc),h("div",{style:{fontSize:"9px",color:C.txm}},sec)),
+        h("div",{style:{textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",color:C.tx}},fmt(aAmt,cur)),
+        hasSubs?h("div",{style:{textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",color:C.cyan}},fmt(pA,cur)):h(UNum,{id:"py_"+id,val:pA,onChange:v=>setPayment(id,v),color:pA>0?C.cyan:C.txd,w:"75px"}),
+        h("div",{style:{textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",color:C.txd}},fmt(aAmt-pA,cur)),
+        h("div",{style:{display:"flex",justifyContent:"center"}},h("span",{style:{fontSize:"10px",fontWeight:600,color:stC,background:stC+"15",padding:"2px 8px",borderRadius:"8px",whiteSpace:"nowrap"}},stL))),
+      isExp&&h("div",{style:{padding:"4px 0 8px 36px",borderBottom:"1px solid "+C.bdr+"15"}},
+        subs.map(sub=>h("div",{key:sub.id,style:{display:"grid",gridTemplateColumns:"1fr 80px 80px 24px",gap:"5px",alignItems:"center",padding:"4px 0",borderBottom:"1px solid "+C.bdr+"08"}},
+          h(UTxt,{id:"sd_"+sub.id,val:sub.desc,onChange:v=>updSub(id,sub.id,"desc",v),placeholder:"פירוט..."}),
+          h(UNum,{id:"sa_"+sub.id,val:sub.amount,onChange:v=>updSub(id,sub.id,"amount",v),w:"70px",color:C.txd}),
+          h(UNum,{id:"sp_"+sub.id,val:sub.paid,onChange:v=>updSub(id,sub.id,"paid",v),w:"70px",color:sub.paid>0?C.cyan:C.txd}),
+          h(RemBtn,{onClick:()=>rmSub(id,sub.id)}))),
+        h("div",{style:{display:"flex",gap:"8px",marginTop:"4px",alignItems:"center"}},
+          h("button",{onClick:()=>addSub(id),style:{background:"transparent",border:"1px dashed "+C.bdr2,color:C.blue,padding:"4px 12px",borderRadius:"5px",cursor:"pointer",fontSize:"10px",fontFamily:"inherit"}},"+ פירוט"),
+          subs.length>0&&h("div",{style:{fontSize:"10px",color:C.txd}},"סה״כ פירוט: "+fmt(subs.reduce((a,s)=>a+(s.amount||0),0),cur)+" | שולם: "+fmt(pA,cur))))
+    )}
 
   function FpRow(p){const{item,calcAmt,updFn,rmFn,moveFn}=p;const amt=calcAmt(item);
     return h("div",{style:{display:"grid",gridTemplateColumns:"20px 1fr 60px 80px 80px 26px",gap:"5px",alignItems:"center",padding:"6px 8px",background:C.bg,borderRadius:"6px",border:"1px solid "+C.bdr}},
@@ -167,7 +214,7 @@ function App(){
       h("div",{style:{textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",color:C.txd}},fmt(Math.round(amt),cur)),
       h(RemBtn,{onClick:()=>rmFn(item.id)}))}
 
-  const tabs=[{key:"fp1",label:"FP#1",icon:"📋"},{key:"fp2",label:"FP",icon:"📊"},{key:"approve",label:"אישור",icon:"🔍"},{key:"approved",label:"מאושרות",icon:"✅"}];
+  const tabs=[{key:"fp1",label:"FP#1",icon:"📋"},{key:"fp2",label:"FP",icon:"📊"},{key:"approve",label:"אישור",icon:"🔍"},{key:"approved",label:"מאושרות",icon:"✅"},{key:"dash",label:"דשבורד",icon:"📈"}];
   const cH4=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 80px 95px 75px",gap:"5px",padding:"0 0 4px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"מבוקש"),h("div",{style:{textAlign:"center"}},"מאושר"),h("div",{style:{textAlign:"center"}},"אישור"));
 
   return h("div",null,
@@ -248,7 +295,7 @@ function App(){
       tab==="approved"&&(()=>{
         const ai=allItems.filter(i=>s.approval[i.id]?.approved);const f1vat=ai.filter(i=>i._src==="vat");const f1=ai.filter(i=>i._src==="fp1");const f2=ai.filter(i=>i._src==="fp2");
         const dG={};ai.filter(i=>i._src==="div").forEach(i=>{const d=divs.find(x=>x.id===i.divId);const k=d?.id||"x";if(!dG[k])dG[k]={n:d?.name||"אחר",it:[]};dG[k].it.push(i)});
-        const pH=h("div",{style:{padding:"0 12px 4px",display:"grid",gridTemplateColumns:"1fr 75px 85px 75px 70px",gap:"5px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"מאושר"),h("div",{style:{textAlign:"center"}},"שולם"),h("div",{style:{textAlign:"center"}},"יתרה"),h("div",{style:{textAlign:"center"}},"סטטוס"));
+        const pH=h("div",{style:{padding:"0 12px 4px",display:"grid",gridTemplateColumns:"28px 1fr 75px 85px 75px 70px",gap:"5px",fontSize:"9px",color:C.txm,fontWeight:700}},h("div",null,""),h("div",null,"תיאור"),h("div",{style:{textAlign:"center"}},"מאושר"),h("div",{style:{textAlign:"center"}},"שולם"),h("div",{style:{textAlign:"center"}},"יתרה"),h("div",{style:{textAlign:"center"}},"סטטוס"));
         return h("div",null,
           h("div",{style:{background:C.card,borderRadius:"11px",border:"1px solid "+C.bdr,padding:"14px",marginBottom:"10px"}},
             h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}},h("div",null,h("h2",{style:{margin:0,fontSize:"14px"}},"✅ מאושרות — "+MHE[selMonth]),h("p",{style:{margin:"2px 0 0",fontSize:"10px",color:C.txd}},"מעקב תשלומים")),h("button",{onClick:()=>exportCSV(s,calcFp1,calcFp2,cur,mkey),style:{background:C.greenD,border:"1px solid "+C.green+"33",color:C.green,padding:"5px 12px",borderRadius:"6px",cursor:"pointer",fontSize:"11px",fontFamily:"inherit",fontWeight:600}},"📥 ייצוא")),
@@ -260,6 +307,97 @@ function App(){
           Object.entries(dG).map(([k,g])=>h("div",{key:k,style:{background:C.card,borderRadius:"9px",border:"1px solid "+C.bdr,padding:"8px 12px",marginBottom:"5px"}},h("div",{style:{fontSize:"10px",fontWeight:700,color:C.blue,marginBottom:"4px"}},"🏢 "+g.n),g.it.map(i=>h(PRow,{key:i.id,id:i.id,desc:i.desc,aAmt:s.approval[i.id].approvedAmount,sec:g.n})))),
           ai.length>0&&h("div",{style:{marginTop:"10px",padding:"12px 16px",background:"linear-gradient(135deg,"+C.cyanD+","+C.card+")",borderRadius:"11px",border:"1px solid "+C.cyan+"20"}},h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},h("div",null,h("div",{style:{fontSize:"12px",fontWeight:700}},"סיכום — "+MHE[selMonth]),h("div",{style:{fontSize:"10px",color:C.txd,marginTop:"2px"}},ai.filter(i=>s.payment[i.id]?.status==="paid").length+" שולמו · "+ai.filter(i=>s.payment[i.id]?.status==="partial").length+" חלקי · "+ai.filter(i=>!s.payment[i.id]?.status||s.payment[i.id]?.status==="unpaid").length+" ממתינים")),h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"18px",fontWeight:700,color:C.cyan}},fmt(totalPaid,cur),h("span",{style:{fontSize:"10px",color:C.txd,fontWeight:400}}," / "+fmt(totalApproved,cur))))))})()
     ),
+
+      // DASHBOARD TAB
+      tab==="dash"&&(()=>{
+        const allMo=Object.keys(data.months).sort();
+        const moData=allMo.map(k=>{
+          const m=data.months[k];if(!m||!m.grossIncome)return null;
+          const vA=m.vatAmount||0;const gNV=m.grossIncome-vA;
+          const cF1=i=>i.isPct?(gNV*i.val/100):i.val;
+          const f1t=vA+(m.fp1||[]).reduce((a,i)=>a+cF1(i),0);
+          const cG=m.grossIncome-f1t;
+          const cF2=i=>i.isPct?(cG*i.val/100):i.val;
+          const vatI={id:"_vat_",_amt:vA,_src:"vat"};
+          const aI=[vatI,...(m.fp1||[]).map(i=>({...i,_amt:cF1(i),_src:"fp1"})),...(m.fp2||[]).map(i=>({...i,_amt:cF2(i),_src:"fp2"})),...(m.divItems||[]).map(i=>({...i,_amt:i.amount||0,_src:"div"}))];
+          const tA=aI.reduce((a,i)=>a+((m.approval||{})[i.id]?.approved?(m.approval||{})[i.id].approvedAmount:0),0);
+          const tP=aI.reduce((a,i)=>a+((m.payment||{})[i.id]?.paidAmount||0),0);
+          const divB=(m.divisions||DIVS).map(d=>{const items=(m.divItems||[]).filter(x=>x.divId===d.id);const ap=items.reduce((a,i)=>a+((m.approval||{})[i.id]?.approved?(m.approval||{})[i.id].approvedAmount:0),0);return{name:d.name.replace(/דיביזיה \d+ — /,""),ap}}).filter(d=>d.ap>0);
+          const pC=aI.filter(i=>(m.payment||{})[i.id]?.status==="paid").length;
+          const prC=aI.filter(i=>(m.payment||{})[i.id]?.status==="partial").length;
+          const uC=aI.filter(i=>(m.approval||{})[i.id]?.approved&&(!(m.payment||{})[i.id]?.status||(m.payment||{})[i.id]?.status==="unpaid")).length;
+          const[y,mo]=k.split("-");
+          return{key:k,label:MHE[parseInt(mo)-1],gross:m.grossIncome,approved:tA,paid:tP,pending:tA-tP,pctUsed:m.grossIncome>0?Math.round(tA/m.grossIncome*100):0,divB,pC,prC,uC};
+        }).filter(Boolean);
+
+        const curMo=moData.find(m=>m.key===mkey)||moData[moData.length-1];
+
+        function CC(props){
+          const ref=useRef(null),cr=useRef(null);
+          useEffect(()=>{
+            if(!ref.current)return;
+            if(cr.current)cr.current.destroy();
+            try{cr.current=new Chart(ref.current,props.cfg)}catch(e){console.error(e)}
+            return()=>{if(cr.current){cr.current.destroy();cr.current=null}};
+          });
+          return h("canvas",{ref,style:{maxHeight:props.ht||"250px",width:"100%"}});
+        }
+
+        if(moData.length===0)return h("div",{style:{textAlign:"center",padding:"40px",color:C.txd}},"אין נתונים. הזן נתונים בחודש אחד לפחות.");
+
+        const barCfg={type:"bar",data:{labels:moData.map(m=>m.label),datasets:[
+          {label:"ברוטו",data:moData.map(m=>m.gross),backgroundColor:"#2563eb33",borderColor:"#2563eb",borderWidth:2},
+          {label:"מאושר",data:moData.map(m=>m.approved),backgroundColor:"#7c3aed33",borderColor:"#7c3aed",borderWidth:2},
+          {label:"שולם",data:moData.map(m=>m.paid),backgroundColor:"#0891b233",borderColor:"#0891b2",borderWidth:2}
+        ]},options:{responsive:true,plugins:{legend:{position:"top",rtl:true,labels:{font:{family:"Segoe UI"},color:C.tx}}},scales:{x:{ticks:{color:C.txd}},y:{ticks:{color:C.txd}}}}};
+
+        const lineCfg={type:"line",data:{labels:moData.map(m=>m.label),datasets:[
+          {label:"% ניצול",data:moData.map(m=>m.pctUsed),borderColor:"#d97706",backgroundColor:"#d9770622",fill:true,tension:0.3,pointRadius:5,pointBackgroundColor:"#d97706"}
+        ]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:C.txd}},y:{min:0,max:100,ticks:{color:C.txd,callback:function(v){return v+"%"}}}}}};
+
+        const dD=curMo?curMo.divB:[];
+        const dCols=["#2563eb","#7c3aed","#059669","#d97706","#dc2626","#0891b2","#db2777"];
+        const pieCfg=dD.length>0?{type:"doughnut",data:{labels:dD.map(d=>d.name),datasets:[{data:dD.map(d=>d.ap),backgroundColor:dCols.slice(0,dD.length),borderWidth:0}]},options:{responsive:true,plugins:{legend:{position:"bottom",rtl:true,labels:{font:{family:"Segoe UI",size:11},color:C.tx,padding:8}}}}}:null;
+
+        const pyD=curMo?[curMo.pC,curMo.prC,curMo.uC]:[0,0,0];
+        const payCfg=(pyD[0]+pyD[1]+pyD[2])>0?{type:"doughnut",data:{labels:["שולם","חלקי","ממתין"],datasets:[{data:pyD,backgroundColor:["#059669","#d97706","#9ca3b0"],borderWidth:0}]},options:{responsive:true,plugins:{legend:{position:"bottom",rtl:true,labels:{font:{family:"Segoe UI",size:11},color:C.tx,padding:8}}}}}:null;
+
+        return h("div",null,
+          h("div",{style:{background:C.card,borderRadius:"11px",border:"1px solid "+C.bdr,padding:"16px",marginBottom:"10px"}},
+            h("h2",{style:{margin:"0 0 4px",fontSize:"15px"}},"📈 דשבורד"),
+            h("p",{style:{margin:0,fontSize:"11px",color:C.txd}},moData.length+" חודשים עם נתונים")),
+
+          h("div",{style:{background:C.card,borderRadius:"11px",border:"1px solid "+C.bdr,padding:"16px",marginBottom:"10px"}},
+            h("h3",{style:{margin:"0 0 10px",fontSize:"13px"}},"השוואה חודשית"),
+            h(CC,{cfg:barCfg,ht:"280px"})),
+
+          h("div",{style:{background:C.card,borderRadius:"11px",border:"1px solid "+C.bdr,padding:"16px",marginBottom:"10px"}},
+            h("h3",{style:{margin:"0 0 10px",fontSize:"13px"}},"ניצול תקציב (% מהברוטו)"),
+            h(CC,{cfg:lineCfg,ht:"220px"})),
+
+          h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"10px"}},
+            h("div",{style:{background:C.card,borderRadius:"11px",border:"1px solid "+C.bdr,padding:"16px"}},
+              h("h3",{style:{margin:"0 0 10px",fontSize:"13px"}},"חלוקה לדיביזיות"+(curMo?" — "+curMo.label:"")),
+              pieCfg?h(CC,{cfg:pieCfg,ht:"220px"}):h("div",{style:{textAlign:"center",padding:"20px",color:C.txm,fontSize:"11px"}},"אין הקצאות")),
+            h("div",{style:{background:C.card,borderRadius:"11px",border:"1px solid "+C.bdr,padding:"16px"}},
+              h("h3",{style:{margin:"0 0 10px",fontSize:"13px"}},"סטטוס תשלומים"+(curMo?" — "+curMo.label:"")),
+              payCfg?h(CC,{cfg:payCfg,ht:"220px"}):h("div",{style:{textAlign:"center",padding:"20px",color:C.txm,fontSize:"11px"}},"אין פריטים"))),
+
+          moData.length>1&&h("div",{style:{background:C.card,borderRadius:"11px",border:"1px solid "+C.bdr,padding:"16px"}},
+            h("h3",{style:{margin:"0 0 10px",fontSize:"13px"}},"טבלת סיכום"),
+            h("div",{style:{overflowX:"auto"}},
+              h("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
+                h("thead",null,h("tr",null,["חודש","ברוטו","מאושר","שולם","ממתין","ניצול"].map((t,i)=>h("th",{key:i,style:{padding:"6px 10px",borderBottom:"2px solid "+C.bdr,textAlign:i===0?"right":"center",color:C.txd,fontWeight:600}},t)))),
+                h("tbody",null,moData.map(m=>h("tr",{key:m.key},
+                  h("td",{style:{padding:"5px 10px",borderBottom:"1px solid "+C.bdr}},m.label),
+                  h("td",{style:{padding:"5px 10px",borderBottom:"1px solid "+C.bdr,textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:C.blue}},fmt(m.gross,cur)),
+                  h("td",{style:{padding:"5px 10px",borderBottom:"1px solid "+C.bdr,textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:C.purple}},fmt(m.approved,cur)),
+                  h("td",{style:{padding:"5px 10px",borderBottom:"1px solid "+C.bdr,textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:C.cyan}},fmt(m.paid,cur)),
+                  h("td",{style:{padding:"5px 10px",borderBottom:"1px solid "+C.bdr,textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:C.amber}},fmt(m.pending,cur)),
+                  h("td",{style:{padding:"5px 10px",borderBottom:"1px solid "+C.bdr,textAlign:"center",fontWeight:600,color:m.pctUsed>90?C.red:m.pctUsed>70?C.amber:C.green}},m.pctUsed+"%")
+                ))))))
+        );
+      })(),
 
     showReset&&h("div",{style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000},onClick:()=>setShowReset(false)},h("div",{onClick:e=>e.stopPropagation(),style:{background:C.card,borderRadius:"14px",padding:"22px",border:"1px solid "+C.bdr,maxWidth:320,width:"90%",textAlign:"center"}},h("div",{style:{fontSize:"24px",marginBottom:"6px"}},"⚠️"),h("h3",{style:{margin:"0 0 4px",fontSize:"13px"}},"איפוס "+MHE[selMonth]+"?"),h("p",{style:{color:C.txd,fontSize:"11px",margin:"0 0 14px"}},"רק החודש הנוכחי."),h("div",{style:{display:"flex",gap:"8px",justifyContent:"center"}},h("button",{onClick:()=>setShowReset(false),style:{background:C.bg,border:"1px solid "+C.bdr,color:C.txd,padding:"6px 14px",borderRadius:"6px",cursor:"pointer",fontSize:"11px",fontFamily:"inherit"}},"ביטול"),h("button",{onClick:resetMonth,style:{background:C.red,border:"none",color:"#fff",padding:"6px 14px",borderRadius:"6px",cursor:"pointer",fontSize:"11px",fontFamily:"inherit",fontWeight:600}},"אפס"))))
   );
