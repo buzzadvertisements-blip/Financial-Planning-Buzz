@@ -46,36 +46,24 @@ function exportCSV(s,calcFp1,calcFp2,cur,mkey){const rows=[["מקור","תיאו
 // Updates happen ONLY on blur or after typing stops.
 
 function UNum({id,val,onChange,color,w}){
-  const ref=useRef(null);
-  const tid=useRef(null);
-  // Only update DOM if value changed externally and input not focused
-  useEffect(()=>{if(ref.current&&ref.current!==document.activeElement){ref.current.value=val||""}},[val]);
-  const commit=()=>{if(tid.current)clearTimeout(tid.current);const v=parseFloat(ref.current?.value)||0;onChange(v)};
-  const onInput=()=>{if(tid.current)clearTimeout(tid.current);tid.current=setTimeout(commit,800)};
-  return h("input",{ref,key:id,type:"number",defaultValue:val||"",onInput,onBlur:commit,
+  return h("input",{key:id+"_"+val,type:"number",defaultValue:val||"",
+    onBlur:e=>{const v=parseFloat(e.target.value)||0;if(v!==val)onChange(v)},
     style:{background:C.bg,border:"1px solid "+C.bdr,color:color||"#60a5fa",borderRadius:"5px",padding:"5px 6px",fontSize:"12px",fontFamily:"'JetBrains Mono',monospace",textAlign:"center",outline:"none",width:w||"80px"},
     onFocus:e=>e.currentTarget.style.borderColor=C.blue});
 }
 
 function UTxt({id,val,onChange,placeholder}){
-  const ref=useRef(null);
-  const tid=useRef(null);
-  useEffect(()=>{if(ref.current&&ref.current!==document.activeElement){ref.current.value=val||""}},[val]);
-  const commit=()=>{if(tid.current)clearTimeout(tid.current);onChange(ref.current?.value||"")};
-  const onInput=()=>{if(tid.current)clearTimeout(tid.current);tid.current=setTimeout(commit,800)};
-  return h("input",{ref,key:id,defaultValue:val||"",onInput,onBlur:commit,placeholder:placeholder||"",
+  return h("input",{key:id+"_"+String(val||""),defaultValue:val||"",
+    onBlur:e=>{const v=e.target.value;if(v!==val)onChange(v)},
+    placeholder:placeholder||"",
     style:{background:"transparent",border:"none",color:C.tx,fontSize:"12px",fontFamily:"inherit",outline:"none",borderBottom:"1px solid "+C.bdr,paddingBottom:"2px",width:"100%"}});
 }
 
 function UGross({val,onChange,cur}){
-  const ref=useRef(null);
-  const tid=useRef(null);
-  useEffect(()=>{if(ref.current&&ref.current!==document.activeElement){ref.current.value=val||""}},[val]);
-  const commit=()=>{if(tid.current)clearTimeout(tid.current);onChange(parseFloat(ref.current?.value)||0)};
-  const onInput=()=>{if(tid.current)clearTimeout(tid.current);tid.current=setTimeout(commit,800)};
   return h("div",{style:{display:"flex",alignItems:"center",gap:"5px"}},
     h("span",{style:{fontSize:"15px",color:C.blue,fontWeight:700}},cur),
-    h("input",{ref,type:"number",defaultValue:val||"",onInput,onBlur:commit,
+    h("input",{key:"gross_"+val,type:"number",defaultValue:val||"",
+      onBlur:e=>{const v=parseFloat(e.target.value)||0;if(v!==val)onChange(v)},
       style:{background:"transparent",border:"none",color:C.tx,fontSize:"22px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",outline:"none",width:"100%"}}));
 }
 
