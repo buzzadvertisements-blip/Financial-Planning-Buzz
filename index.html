@@ -46,22 +46,28 @@ function exportCSV(s,calcFp1,calcFp2,cur,mkey){const rows=[["מקור","תיאו
 // Updates happen ONLY on blur or after typing stops.
 
 function UNum({id,val,onChange,color,w}){
-  return h("input",{type:"number",defaultValue:val??"",
-    onBlur:e=>{const v=parseFloat(e.target.value)||0;onChange(v)},
+  const t=useRef(null);
+  const go=e=>{const v=parseFloat(e.target.value)||0;onChange(v)};
+  const onInp=e=>{const el=e.target;if(t.current)clearTimeout(t.current);t.current=setTimeout(()=>go({target:el}),700)};
+  return h("input",{type:"number",defaultValue:val??"",onInput:onInp,onBlur:e=>{if(t.current)clearTimeout(t.current);go(e)},
     style:{background:C.bg,border:"1px solid "+C.bdr,color:color||"#60a5fa",borderRadius:"5px",padding:"5px 6px",fontSize:"12px",fontFamily:"'JetBrains Mono',monospace",textAlign:"center",outline:"none",width:w||"80px"}});
 }
 
 function UTxt({id,val,onChange,placeholder}){
-  return h("input",{defaultValue:val??"",placeholder:placeholder||"",
-    onBlur:e=>{onChange(e.target.value)},
+  const t=useRef(null);
+  const go=e=>onChange(e.target.value);
+  const onInp=e=>{const el=e.target;if(t.current)clearTimeout(t.current);t.current=setTimeout(()=>go({target:el}),700)};
+  return h("input",{defaultValue:val??"",placeholder:placeholder||"",onInput:onInp,onBlur:e=>{if(t.current)clearTimeout(t.current);go(e)},
     style:{background:"transparent",border:"none",color:C.tx,fontSize:"12px",fontFamily:"inherit",outline:"none",borderBottom:"1px solid "+C.bdr,paddingBottom:"2px",width:"100%"}});
 }
 
 function UGross({val,onChange,cur}){
+  const t=useRef(null);
+  const go=e=>{onChange(parseFloat(e.target.value)||0)};
+  const onInp=e=>{const el=e.target;if(t.current)clearTimeout(t.current);t.current=setTimeout(()=>go({target:el}),700)};
   return h("div",{style:{display:"flex",alignItems:"center",gap:"5px"}},
     h("span",{style:{fontSize:"15px",color:C.blue,fontWeight:700}},cur),
-    h("input",{type:"number",defaultValue:val??"",
-      onBlur:e=>{onChange(parseFloat(e.target.value)||0)},
+    h("input",{type:"number",defaultValue:val??"",onInput:onInp,onBlur:e=>{if(t.current)clearTimeout(t.current);go(e)},
       style:{background:"transparent",border:"none",color:C.tx,fontSize:"22px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",outline:"none",width:"100%"}}));
 }
 
