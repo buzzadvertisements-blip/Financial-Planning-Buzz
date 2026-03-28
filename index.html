@@ -80,6 +80,17 @@ function SecTot(p){const bgc=p.color===C.green?C.greenD:p.color===C.red?C.redD:p
 function Chev(p){return h("span",{style:{transform:p.open?"rotate(90deg)":"rotate(0)",transition:"transform 0.15s",display:"inline-block",fontSize:"10px",color:C.txm}},"▶")}
 function SC(p){return h("div",{style:{background:p.bg,borderRadius:"8px",padding:"7px 9px",border:"1px solid "+p.color+"15"}},h("div",{style:{fontSize:"9px",color:C.txd,whiteSpace:"nowrap"}},p.label),h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:p.big?"16px":"13px",fontWeight:700,color:p.color}},fmt(p.value,p.cur)))}
 
+function CC(props){
+  const ref=useRef(null),cr=useRef(null);
+  useEffect(()=>{
+    if(!ref.current)return;
+    if(cr.current)cr.current.destroy();
+    try{cr.current=new Chart(ref.current,props.cfg)}catch(e){console.error(e)}
+    return()=>{if(cr.current){cr.current.destroy();cr.current=null}};
+  });
+  return h("canvas",{ref,style:{maxHeight:props.ht||"250px",width:"100%"}});
+}
+
 function App(){
   const[data,setData]=useState(null);
   const now=new Date();
@@ -91,6 +102,7 @@ function App(){
   const[editDivName,setEditDivName]=useState(null);
   const[showReset,setShowReset]=useState(false);
   const[showCopy,setShowCopy]=useState(false);
+  const[expandedSubs,setExpandedSubs]=useState({});
   const[saveSt,setSaveSt]=useState("");
   const loaded=useRef(false);
   const saveT=useRef(null);
@@ -168,7 +180,6 @@ function App(){
   const addSub=(itemId)=>sM(m=>{const py={...(m.payment||{})};const cur=py[itemId]||{status:"unpaid",paidAmount:0,subs:[]};const subs=[...(cur.subs||[]),{id:gid(),desc:"",amount:0,paid:0}];py[itemId]={...cur,subs};return{...m,payment:py}});
   const updSub=(itemId,subId,field,val)=>sM(m=>{const py={...(m.payment||{})};const cur=py[itemId]||{status:"unpaid",paidAmount:0,subs:[]};const subs=(cur.subs||[]).map(s=>s.id===subId?{...s,[field]:val}:s);const totalPaid=subs.reduce((a,s)=>a+(s.paid||0),0);const apAmt=(m.approval||{})[itemId]?.approvedAmount||0;const status=totalPaid>=apAmt&&apAmt>0?"paid":totalPaid>0?"partial":"unpaid";py[itemId]={...cur,subs,paidAmount:totalPaid,status};return{...m,payment:py}});
   const rmSub=(itemId,subId)=>sM(m=>{const py={...(m.payment||{})};const cur=py[itemId]||{status:"unpaid",paidAmount:0,subs:[]};const subs=(cur.subs||[]).filter(s=>s.id!==subId);const totalPaid=subs.reduce((a,s)=>a+(s.paid||0),0);const apAmt=(m.approval||{})[itemId]?.approvedAmount||0;const status=totalPaid>=apAmt&&apAmt>0?"paid":totalPaid>0?"partial":"unpaid";py[itemId]={...cur,subs,paidAmount:totalPaid,status};return{...m,payment:py}});
-  const[expandedSubs,setExpandedSubs]=useState({});
   const toggleSub=id=>setExpandedSubs(p=>({...p,[id]:!p[id]}));
   const resetMonth=()=>{sM(()=>freshMonth());setShowReset(false)};
   const existMo=Object.keys(data.months).filter(k=>k!==mkey&&data.months[k].grossIncome>0).sort().reverse();
@@ -332,16 +343,7 @@ function App(){
 
         const curMo=moData.find(m=>m.key===mkey)||moData[moData.length-1];
 
-        function CC(props){
-          const ref=useRef(null),cr=useRef(null);
-          useEffect(()=>{
-            if(!ref.current)return;
-            if(cr.current)cr.current.destroy();
-            try{cr.current=new Chart(ref.current,props.cfg)}catch(e){console.error(e)}
-            return()=>{if(cr.current){cr.current.destroy();cr.current=null}};
-          });
-          return h("canvas",{ref,style:{maxHeight:props.ht||"250px",width:"100%"}});
-        }
+        
 
         if(moData.length===0)return h("div",{style:{textAlign:"center",padding:"40px",color:C.txd}},"אין נתונים. הזן נתונים בחודש אחד לפחות.");
 
