@@ -98,7 +98,10 @@ function App(){
   mkRef.current=mkey;
   mkeyRefG.current=mkey;
 
-  useEffect(()=>{dbL().then(d=>{if(!d)d={currency:"₪",months:{}};if(!d.months)d.months={};if(silSaveRef.current)clearTimeout(silSaveRef.current);setData(d);dataRef.current=d;dataRefG.current=d;DIVS.forEach(v=>setExpD(p=>({...p,[v.id]:true})));loaded.current=true;justLoaded.current=true;setTimeout(()=>{justLoaded.current=false},3000)})},[]);
+  useEffect(()=>{
+    // Ping to keep Supabase project alive (prevents auto-pause after 7 days inactivity)
+    fetch(SU+"/rest/v1/fp_data?select=id&limit=1",{headers:SH}).catch(()=>{});
+    dbL().then(d=>{if(!d)d={currency:"₪",months:{}};if(!d.months)d.months={};if(silSaveRef.current)clearTimeout(silSaveRef.current);setData(d);dataRef.current=d;dataRefG.current=d;DIVS.forEach(v=>setExpD(p=>({...p,[v.id]:true})));loaded.current=true;justLoaded.current=true;setTimeout(()=>{justLoaded.current=false},3000)})},[]);
   useEffect(()=>{dataRef.current=data;dataRefG.current=data},[data]);
   useEffect(()=>{if(!loaded.current||!data||justLoaded.current)return;if(saveT.current)clearTimeout(saveT.current);saveT.current=setTimeout(()=>{dbS(dataRef.current)},2000);return()=>{if(saveT.current)clearTimeout(saveT.current)}},[data]);
 
